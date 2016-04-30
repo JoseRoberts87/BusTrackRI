@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">BusTrackRI</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <string name="action_settings">Settings</string>
+
+    <!--URLs-->
+    <string name="url_ripta">http://www.ripta.com/</string>
+    <string name="ignore_url_map">http://m.ripta.com/mobile/map.php?id=1</string>
+    <string name="ignore_url_schedule">http://m.ripta.com/schedules---maps-1</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="title_activity_maps">Map</string>
+
+    <string name="ri_bus_routes">Rhode Island Bus Routes</string>
+    <string name="url">url</string>
+
+</resources>
