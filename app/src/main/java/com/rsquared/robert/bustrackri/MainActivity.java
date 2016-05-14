@@ -19,33 +19,21 @@ import android.view.MenuItem;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, NavigationDrawerFragment.NavigationDrawerCallbacks {
-
-    private NavigationDrawerFragment mNavigationDrawerFragment;
-
-    private CharSequence mTitle;
+        implements NavigationView.OnNavigationItemSelectedListener {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        mNavigationDrawerFragment = (NavigationDrawerFragment)
-                getFragmentManager().findFragmentById(R.id.navigation_drawer);
-        mTitle = getTitle();
-
-        // Set up the drawer.
-        mNavigationDrawerFragment.setUp(
-                R.id.navigation_drawer,
-                (DrawerLayout) findViewById(R.id.drawer_layout));
-
-
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-/*        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+//        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+   /*     fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
@@ -55,11 +43,30 @@ public class MainActivity extends AppCompatActivity
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-            this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
+/*        Menu menu = (Menu) findViewById(R.id.bus_route);
+        populateMenu(menu);
+        */
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+
+        //         app:headerLayout="@layout/nav_header_main"
+
+        Menu menu = navigationView.getMenu();
+     /*   View headerView = navigationView.inflateHeaderView(R.layout.nav_header_main);
+        headerView.setVerticalScrollBarEnabled(false);
+        headerView.setOverScrollMode(View.OVER_SCROLL_NEVER);*/
+//        headerView.setTop(0);
+        List<String> busRoutesArray = new ArrayList<>();
+        busRoutesArray.add("Bus route 1");
+        busRoutesArray.add("Bus route 2");
+        busRoutesArray.add("Bus route 3");
+        busRoutesArray.add("Bus route 4");
+        busRoutesArray.add("Bus route 5");
+        populateMenu(menu, busRoutesArray);
+
         navigationView.setNavigationItemSelectedListener(this);
     }
 
@@ -80,9 +87,24 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
+
+//        populateMenu(menu);
         getMenuInflater().inflate(R.menu.main, menu);
         initialize();
+//        populateMenu(menu);
         return true;
+    }
+
+    private void populateMenu(Menu menu, List<String> busRoutesArray) {
+
+        for (int i = 0; i < busRoutesArray.size(); i++) {
+            menu.add(i, i, i, busRoutesArray.get(i));
+        }
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        return super.onPrepareOptionsMenu(menu);
     }
 
     @Override
@@ -107,25 +129,20 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
 /*        if (id == R.id.nav_camera) {
-            startActivity(new Intent("android.intent.action.MAPACTIVITY"));
-        }*/
-
-/*        if (id == R.id.nav_camera) {
             // Handle the camera action
         } else if (id == R.id.nav_gallery) {
 
         } else if (id == R.id.nav_slideshow) {
 
-        } else if (id == R.id.nav_manage) {
-            startMap();
-//            startActivity(new Intent("android.intent.action.MAPACTIVITY"));
+        } else*/
+/*        if (id == R.id.nav_manage) {
 
         } else if (id == R.id.nav_share) {
 
         } else if (id == R.id.nav_send) {
 
         }*/
-
+//        startActivity(new Intent("android.intent.action.MAPACTIVITY"));
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
@@ -137,50 +154,5 @@ public class MainActivity extends AppCompatActivity
         webView.setWebViewClient(new WebViewClient(this));
         webView.loadUrl("http://m.ripta.com/1");
 
-    }
-
-    @Override
-    public void onNavigationDrawerItemSelected(int position) {
-
-    }
-
-    /**
-     * A placeholder fragment containing a simple view.
-     */
-    public static class PlaceholderFragment extends Fragment {
-        /**
-         * The fragment argument representing the section number for this
-         * fragment.
-         */
-        private static final String ARG_SECTION_NUMBER = "section_number";
-
-        /**
-         * Returns a new instance of this fragment for the given section
-         * number.
-         */
-        public static PlaceholderFragment newInstance(int sectionNumber) {
-            PlaceholderFragment fragment = new PlaceholderFragment();
-            Bundle args = new Bundle();
-            args.putInt(ARG_SECTION_NUMBER, sectionNumber);
-            fragment.setArguments(args);
-            return fragment;
-        }
-
-        public PlaceholderFragment() {
-        }
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_nav_drawer, container, false);
-            return rootView;
-        }
-
-        @Override
-        public void onAttach(Activity activity) {
-            super.onAttach(activity);
-    /*        ((MainActivity) activity).onSectionAttached(
-                    getArguments().getInt(ARG_SECTION_NUMBER) - 1);*/
-        }
     }
 }
