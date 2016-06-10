@@ -1,13 +1,8 @@
 package com.rsquared.robert.bustrackri;
 
-import android.app.Activity;
-import android.app.Fragment;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.view.LayoutInflater;
-import android.view.View;
+import android.util.Log;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -16,9 +11,11 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.ViewGroup;
 import android.webkit.WebView;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,27 +44,30 @@ public class MainActivity extends AppCompatActivity
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
-/*        Menu menu = (Menu) findViewById(R.id.bus_route);
-        populateMenu(menu);
-        */
+        List<String> busRoutesArray = new ArrayList<>();
+
+        try {
+            InputStream iS = getResources().openRawResource(R.raw.bus_stop_names);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                busRoutesArray.add(line);
+            }
+            Log.i("getTextFromFIle", busRoutesArray.toString());
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
 
-        //         app:headerLayout="@layout/nav_header_main"
-
         Menu menu = navigationView.getMenu();
-     /*   View headerView = navigationView.inflateHeaderView(R.layout.nav_header_main);
-        headerView.setVerticalScrollBarEnabled(false);
-        headerView.setOverScrollMode(View.OVER_SCROLL_NEVER);*/
-//        headerView.setTop(0);
-        List<String> busRoutesArray = new ArrayList<>();
-        busRoutesArray.add("Bus route 1");
-        busRoutesArray.add("Bus route 2");
-        busRoutesArray.add("Bus route 3");
-        busRoutesArray.add("Bus route 4");
-        busRoutesArray.add("Bus route 5");
+
         populateMenu(menu, busRoutesArray);
 
         navigationView.setNavigationItemSelectedListener(this);
+
+//        startMap();
+
     }
 
     @Override
@@ -88,10 +88,8 @@ public class MainActivity extends AppCompatActivity
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
 
-//        populateMenu(menu);
         getMenuInflater().inflate(R.menu.main, menu);
         initialize();
-//        populateMenu(menu);
         return true;
     }
 
@@ -126,30 +124,18 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
         // Handle navigation view item clicks here.
-        int id = item.getItemId();
+        String urlTitle = String.valueOf(item.getTitle());
+        Bundle bundle = new Bundle();
 
-/*        if (id == R.id.nav_camera) {
-            // Handle the camera action
-        } else if (id == R.id.nav_gallery) {
+        bundle.putString("url", urlTitle);
 
-        } else if (id == R.id.nav_slideshow) {
-
-        } else*/
-/*        if (id == R.id.nav_manage) {
-
-        } else if (id == R.id.nav_share) {
-
-        } else if (id == R.id.nav_send) {
-
-        }*/
-//        startActivity(new Intent("android.intent.action.MAPACTIVITY"));
+        startActivity(new Intent("android.intent.action.MAPACTIVITY").putExtras(bundle));
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
 
     private void initialize(){
-
         WebView webView = (WebView) findViewById(R.id.webView);
         webView.setWebViewClient(new WebViewClient(this));
         webView.loadUrl("http://m.ripta.com/1");

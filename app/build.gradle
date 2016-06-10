@@ -29,4 +29,5 @@ dependencies {
     compile 'com.google.android.gms:play-services:8.4.0'
     compile 'com.android.support:recyclerview-v7:23.1.1'
     compile files('libs/jsoup-1.7.3.jar')
+    compile 'com.google.maps.android:android-maps-utils:0.4.3'
 }

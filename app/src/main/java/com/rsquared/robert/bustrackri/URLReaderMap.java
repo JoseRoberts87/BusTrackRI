@@ -18,7 +18,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 public class URLReaderMap {
-    /*public static InputStream getInputStreamFromUrl(String url) {
+  /*  public static InputStream getInputStreamFromUrl(String url) {
         InputStream content = null;
         try {
             HttpClient httpclient = new DefaultHttpClient();
@@ -46,6 +46,7 @@ public class URLReaderMap {
                 }
             }
         }
+        Log.i("getTextFromURL:", stringArrayList.toString());
         return stringArrayList;
 
     }
