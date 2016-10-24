@@ -1,8 +1,12 @@
 package com.rsquared.robert.bustrackri;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.Build;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import com.google.android.gms.maps.CameraUpdate;
@@ -12,6 +16,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.PolyUtil;
@@ -52,13 +57,55 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         try{
             mMap = googleMap;
+            setMyLocation();
             String url = getIntent().getExtras().getString("url");
             url = getFormedUrl(url);
+//            createRoute(url);
+//            createMapInfo(url);
             setRoutePath(url);
             setMapInfo(url);
         }catch (Exception e){
             e.printStackTrace();
         }
+    }
+
+    private void createMapInfo(String url) {
+
+    }
+
+    public void createRoute(String url) {
+
+        PolylineOptions polylineOptions = new PolylineOptions().width(4).color(Color.BLUE);
+        List<LatLng> decodedLatLng = null;
+        String route = "";
+
+        List<String> arrayRoutePath = getMapInfoAndRoute(url, "var route_path");
+
+        for(String routePath: arrayRoutePath) {
+            route = getRouteString(routePath);
+        }
+        try {
+            decodedLatLng = PolyUtil.decode(route);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        for (LatLng latLng : decodedLatLng) {
+            polylineOptions.add(latLng);
+        }
+        mMap.addPolyline(polylineOptions);
+    }
+
+    private void setMyLocation() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            mMap.setMyLocationEnabled(true);
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+            }
+            // Show rationale and request permission.
+        }
+        mMap.setMyLocationEnabled(true);
     }
 
     private String getFormedUrl(String url) {
@@ -68,6 +115,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void setRoutePath(String url){
+        LatLng latLongFirst = null;
+        LatLng latLongLast = null;
+        double latitude = 0;
+        double longitude = 0;
+        int totalLatLng = 0;
         List<String> arrayRoutePath = getMapInfoAndRoute(url, "var route_path");
         for(String routePath: arrayRoutePath) {
             if (!routePath.isEmpty()) {
@@ -86,15 +138,44 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                     Log.i("decodedLatLng: ", decodedLatLng.toString());
                     for (LatLng latLng : decodedLatLng) {
+                        if(latLng.latitude > 0){
+                            latitude += latLng.latitude;
+                        }else{
+                            latitude -= latLng.latitude;
+                        }
+                        if(latLng.longitude > 0){
+                            longitude += latLng.longitude;
+                        }else{
+                            longitude -= latLng.longitude;
+                        }
+                        totalLatLng++;
+                        if(latLongFirst == null){
+                            latLongFirst = latLng;
+                        }
+                        latLongLast = latLng;
                         polylineOptions.add(latLng);
                     }
                     if (decodedLatLng != null) {
                         mMap.addPolyline(polylineOptions);
                     }
+
                 }
             }
         }
-        String done = "Done!";
+        if(MIDDLE_LOCATION == null){
+            MIDDLE_LOCATION = new LatLng(latitude/totalLatLng, -longitude/totalLatLng);
+        }
+/*        if(latLongFirst.latitude < latLongLast.latitude) {
+            LatLngBounds middleLatLng = new LatLngBounds(
+                    latLongLast, latLongFirst);
+            MIDDLE_LOCATION = middleLatLng.getCenter();
+            String done = "Done!";
+        }else{
+            LatLngBounds middleLatLng = new LatLngBounds(
+                    latLongFirst, latLongLast);
+            MIDDLE_LOCATION = middleLatLng.getCenter();
+            String done = "Done!";
+        }*/
     }
 
     private void setMapInfo(String url){
@@ -102,23 +183,38 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         double latitude = 0;
         double longitude = 0;
         int totalLatLng = 0;
+        LatLng latLongFirst = null;
+        LatLng latLongLast = null;
         for(String mapInfo: arrayMapInfo){
             if(!mapInfo.isEmpty()){
+                String stopName = getStopName(mapInfo);
                 LatLng latLng = getMarkerLatLng(mapInfo);
+                if(latLongFirst == null){
+                    latLongFirst = latLng;
+                }
                 String markerName = getMarkerName(mapInfo);
                 if(latLng != null){
-                    mMap.addMarker(new MarkerOptions().position(latLng).title(markerName).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue)));
+                    mMap.addMarker(new MarkerOptions().position(latLng).title(markerName).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small)));
                     latitude = latitude + latLng.latitude;
                     longitude = longitude - latLng.longitude;
                     totalLatLng++;
                 }
+                if(latLng != null) {
+                    latLongLast = latLng;
+                }
             }
         }
-        if(MIDDLE_LOCATION == null){
+/*        LatLngBounds middleLatLng = new LatLngBounds(
+                latLongFirst, latLongLast);*/
+
+//        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(middleLatLng.getCenter(), 20));
+
+/*        if(MIDDLE_LOCATION == null){
             MIDDLE_LOCATION = new LatLng(latitude/totalLatLng, -longitude/totalLatLng);
-        }
-        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(MIDDLE_LOCATION, 11);
-        mMap.animateCamera(cameraUpdate);
+        }*/
+        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(MIDDLE_LOCATION,11);
+        mMap.moveCamera(cameraUpdate);
+        MIDDLE_LOCATION = null;
     }
 
     private List<String> getMapInfoAndRoute(String url, String value) {
@@ -194,5 +290,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         int endIndex = latitude.indexOf(',');
         latitude = latitude.substring(0, endIndex);
         return latitude;
+    }
+
+    private String getStopName(String stop){
+        stop = stop.substring( stop.indexOf("\"") + 1, stop.indexOf(",") - 1);
+        return stop;
     }
 }
