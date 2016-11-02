@@ -1,22 +1,19 @@
 package com.rsquared.robert.bustrackri;
 
-import android.app.Activity;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Created by Robert on 10/21/2016.
  */
-public class RIPTAAPIConsolidation extends Activity {
+public class RIPTAAPIConsolidation {
 
     public static void main(String[] args){
 
-        RIPTAAPIConsolidation riptaapiConsolidation = new RIPTAAPIConsolidation();
-        List<String> headers = riptaapiConsolidation.getHeaders();
+        FileManager fileManager = new FileManager();
+        List<String> headers = fileManager.getHeaders();
         List<String> titles = getTitlesHeader(headers);
         List<String> overLappingTitles = getOverlappingTitles(titles);
 
@@ -24,13 +21,15 @@ public class RIPTAAPIConsolidation extends Activity {
 
     private static List<String> getOverlappingTitles(List<String> titles) {
         List<String>  overlappingTitleList = new ArrayList<>();
+        Set<String> overlappingTitleSet = new HashSet<>();
         String previousTitle = titles.get(0);
         for (int i = 1; i < titles.size(); i++){
             String nextTitle = titles.get(i);
             if(previousTitle == nextTitle){
-                overlappingTitleList.add(nextTitle);
+                overlappingTitleSet.add(nextTitle);
             }
         }
+        overlappingTitleList.addAll(overlappingTitleSet);
         return overlappingTitleList;
     }
 
@@ -44,37 +43,5 @@ public class RIPTAAPIConsolidation extends Activity {
             }
         }
         return titleList;
-    }
-
-
-    public List<String> getHeaders() {
-
-        List<String> headers = new ArrayList<>();
-
-        try {
-            InputStream iS1 = getResources().openRawResource(R.raw.bus_api_file1);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(iS1));
-            String line = reader.readLine();
-            headers.add(line);
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        try {
-            InputStream iS2 = getResources().openRawResource(R.raw.bus_api_file2);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(iS2));
-            String line = reader.readLine();
-            headers.add(line);
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        try {
-            InputStream iS3 = getResources().openRawResource(R.raw.bus_api_file3);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(iS3));
-            String line = reader.readLine();
-            headers.add(line);
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        return headers;
     }
 }

@@ -1,0 +1,58 @@
+route_long_name,route_id,route_type,route_text_color,agency_id,route_color,route_url,route_desc,route_short_name
+Reservoir/Garden City,21-52,3,,RIPTA,,,,21
+west bay,14-52,3,,RIPTA,,,,14
+providence school service,4-52,3,,RIPTA,,,,4
+branch/bryant university,52-52,3,,RIPTA,,,,52
+douglas ave,50-52,3,,RIPTA,,,,50
+Central Avenue,76-52,3,,RIPTA,,,,76
+elmwood/airport,20-52,3,,RIPTA,,,,20
+wakefield express,65-52,3,,RIPTA,,,,65
+dexter/lincoln mall,75-52,3,,RIPTA,,,,75
+pontiac avenue,22-52,3,,RIPTA,,,,22
+East Providence,34-52,3,,RIPTA,,,,34
+fairmount/walnut hill,87-52,3,,RIPTA,,,,87
+eddy/hope/benefit,1-52,3,,RIPTA,,,,1
+10X North Scituate Express,10-52,3,,RIPTA,,,,10
+Butler/Elmgrove,40-52,3,,RIPTA,,,,40
+newport/uri,64-52,3,,RIPTA,,,,64
+Riverside,33-52,3,,RIPTA,,,,33
+Broad Street/Pawtucket,71-52,3,,RIPTA,,,,71
+stand-by,2-52,3,,RIPTA,,,,2
+broadway/manton,27-52,3,,RIPTA,,,,27
+tiverton/east bay express,61-52,3,,RIPTA,,,,61
+broadway/hartford,28-52,3,,RIPTA,,,,28
+Armistice Blvd.,80-52,3,,RIPTA,,,,80
+prairie avenue,6-52,3,,RIPTA,,,,6
+charles street,51-52,3,,RIPTA,,,,51
+mineral spring/north providence,58-52,3,,RIPTA,,,,58
+Arctic/Washington,13-52,3,,RIPTA,,,,13
+pascoag,9-52,3,,RIPTA,,,,9
+95X Westerly Express,95-52,3,,RIPTA,,,,95
+kent county,29-52,3,,RIPTA,,,,29
+r line,11-52,3,,RIPTA,,,,11
+Warwick Avenue,3-52,3,,RIPTA,,,,3
+59X North Smithfield/Lincoln Express,59-52,3,,RIPTA,,,,59
+weeden/central falls,72-52,3,,RIPTA,,,,72
+Arlington/Oaklawn,30-52,3,,RIPTA,,,,30
+admiral/providence college,55-52,3,,RIPTA,,,,55
+dyer/pocasset,17-52,3,,RIPTA,,,,17
+jefferson blvd.,8-52,3,,RIPTA,,,,8
+East providence/Wampanoag,32-52,3,,RIPTA,,,,32
+providence/newport,60-52,3,,RIPTA,,,,60
+rumford/newport ave.,35-52,3,,RIPTA,,,,35
+fairlawn/ccri/twin river,73-52,3,,RIPTA,,,,73
+Union Avenue,18-52,3,,RIPTA,,,,18
+East Side/Federal Hill/RI College,92-52,3,,RIPTA,,,,92
+lincoln/woonsocket,54-52,3,,RIPTA,,,,54
+uri/galilee,66-52,3,,RIPTA,,,,66
+beverage hill/east providence,78-52,3,,RIPTA,,,,78
+smith street,57-52,3,,RIPTA,,,,57
+12X Arctic/Rte.117/Express,12-52,3,,RIPTA,,,,12
+Pawtucket Avenue,98-52,3,,RIPTA,,,,98
+Chalkstone Avenue,56-52,3,,RIPTA,,,,56
+camp street,49-52,3,,RIPTA,,,,49
+plainfield/westminster,19-52,3,,RIPTA,,,,19
+URI Campus Hillclimber,69-52,3,,RIPTA,,,,69
+bellevue - mansions - salve,67-52,3,,RIPTA,,,,67
+Cranston Street,31-52,3,,RIPTA,,,,31
+broadway/middletown,63-52,3,,RIPTA,,,,63
