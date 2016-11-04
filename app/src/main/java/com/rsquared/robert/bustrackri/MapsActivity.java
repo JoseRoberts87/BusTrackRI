@@ -11,11 +11,11 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
-import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
@@ -32,7 +32,6 @@ import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
@@ -50,12 +49,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static LatLng MIDDLE_LOCATION = null;
     private Marker marker = null;
     private MarkerOptions markerOptions = null;
-    private boolean isMarkerAdded = false;
-    private Button button = null;
-    private Context context;
-    private Handler handler;
+    final private Context context = this.getBaseContext();
+    //    private Handler handler;
     private int latLngIndex = 0;
-
+    private List<LatLng> decodedLatLngList;
+    Runnable runnable;
+    private boolean isRunnablePosted = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +66,44 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
     }
 
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+//        String url = getFormedUrl();
+//        runUpdaterThread(url);
+        if (!isRunnablePosted) {
+            isRunnablePosted = new Handler().postDelayed(runnable, 1000);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!isRunnablePosted) {
+            isRunnablePosted = new Handler().postDelayed(runnable, 1000);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (isRunnablePosted) {
+            new Handler().removeCallbacks(runnable);
+            isRunnablePosted = false;
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        Handler handler = new Handler();
+        if (hasFocus && !isRunnablePosted) {
+            isRunnablePosted = handler.postDelayed(runnable, 1000);
+        } else {
+            handler.removeCallbacks(runnable);
+            isRunnablePosted = false;
+        }
+    }
 
     /**
      * Manipulates the map once available.
@@ -79,44 +116,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        try{
+        try {
             mMap = googleMap;
             setMyLocation();
-            String url = getIntent().getExtras().getString("url");
-            url = getFormedUrl(url);
+            String url = getFormedUrl();
             setRoutePath(url);
             setMapInfo(url);
-
-            final List<LatLng> decodedLatLngList = getListDecodedLatLng(url);
-
-
-            button = new Button(this);
-            button.setText("Click me");
-            addContentView(button, new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT));
-
-            markerOptions = new MarkerOptions();
-
-            button.setOnClickListener(new View.OnClickListener() {
-
-                @Override
-                public void onClick(View v) {
-                    // TODO Auto-generated method stub
- /*                   Button button = (Button) v;
-                    String url = button.getText().toString();
-                    animateBus(url);*/
-                    if(marker !=null){
-                        marker.remove();
-                    }
-                    markerOptions.position(decodedLatLngList.get(latLngIndex)).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
-                    marker = mMap.addMarker(markerOptions);
-                    Toast.makeText(button.getContext(), "Button was Pressed", Toast.LENGTH_LONG).show();
-                    latLngIndex++;
-                }
-            });
-
-//            runOnUiThread();
-            runTimedThread(url, marker);
-        }catch (Exception e){
+            runUpdaterThread(url);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -144,102 +151,92 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Toast.makeText(ctx, "Hi!", Toast.LENGTH_SHORT).show();
     }
 
-    private void runTimedThread(String url, final Marker finalMarker) {
+    private void animateMarker(String url) {
+
+        LatLng latLngOld;
+        LatLng latLngNew;
+
+        if (false /*connect to Ripta*/) {
+            latLngNew = riptaAPICoordinates(url);
+        } else {
+            latLngNew = fileAPICoordinates(url);
+        }
+
+        if (markerOptions == null) {
+            markerOptions = new MarkerOptions();
+        }
+
+        if (marker != null) {
+//            marker.remove();
+            latLngOld = marker.getPosition();
+
+            MarkerAnimation markerAnimation = new MarkerAnimation();
+            markerAnimation.animateMarkerToGB(marker, latLngNew, new LatLngInterpolator.Linear());
+        } else {
+            markerOptions = new MarkerOptions();
+            markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
+            marker = mMap.addMarker(markerOptions);
+            latLngOld = latLngNew;
+        }
 
 
-        handler = new Handler();
-        final boolean run = true;
-        final Runnable runnable = new Runnable(){
+
+/*        markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
+        marker = mMap.addMarker(markerOptions);
+        */
+        latLngIndex++;
+    }
+
+    private LatLng fileAPICoordinates(String url) {
+        List<LatLng> decodedLatLngList = getListDecodedLatLng(url);
+        return decodedLatLngList.get(latLngIndex);
+    }
+
+/*    private void getGPSLocation(String url) {
+        LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        LocationListener listener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+
+            }
+//            ...
+        };
+
+        String GPS_PROVIDER = "";
+
+        long intervall = 1212;
+        float distance = 1222;
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        locationManager.requestLocationUpdates(GPS_PROVIDER, intervall, distance, (android.location.LocationListener) listener);
+    }*/
+
+
+    private LatLng riptaAPICoordinates(String url) {
+        return new LatLng(0, 0);
+    }
+
+    private void runUpdaterThread(final String url) {
+        final Handler handler = new Handler();
+        runnable = new Runnable(){
             @Override
             public void run() {
-                    button.performClick();
-
-/*                marker.setPosition(latLngInterpolator.interpolate(v, startPosition, finalPosition));
-
-                markerOptions.position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
-                marker = mMap.addMarker(markerOptions);*/
+                animateMarker(url);
                 handler.postDelayed(this, 5000);
             }
         };
 
-        handler.postDelayed(runnable, 5000);
+        handler.postDelayed(runnable, 1000);
     }
 
-
-    public void manipulateButton(String url) {
-        button.setText(url);
-        button.callOnClick();
-    }
-
-    private void animateBus(String url) {
-        Handler handler = new Handler();
-        List<String> arrayRoutePath = getMapInfoAndRoute(url, "var route_path");
-        String route = getRouteString(arrayRoutePath.get(0));
-        List<LatLng> decodedLatLng = null;
-        while (route.contains("\\\\")) {
-            route = cleanBackSlash(route);
-        }
-        try {
-            decodedLatLng = PolyUtil.decode(route);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        final List<LatLng> finalDecodedLatLng = decodedLatLng;
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                    for(LatLng latLng: finalDecodedLatLng) {
-                        if(markerOptions == null){
-                            markerOptions = new MarkerOptions();
-                        }
-                        if(marker != null){
-                            marker.remove();
-                        }
-
-                        try {
-                            Thread.sleep(3000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        markerOptions.position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
-                        marker = mMap.addMarker(markerOptions);
-    /*                    try {
-                                markerOptions.position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
-    //                        Thread.sleep(5000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }*/
-    //                    animateMarker(marker, latLng, false);
-                    }
-            }
-        });
-    }
-
-    private void createMapInfo(String url) {
-
-    }
-
-    public void createRoute(String url) {
-
-        PolylineOptions polylineOptions = new PolylineOptions().width(4).color(Color.BLUE);
-        List<LatLng> decodedLatLng = null;
-        String route = "";
-
-        List<String> arrayRoutePath = getMapInfoAndRoute(url, "var route_path");
-
-        for(String routePath: arrayRoutePath) {
-            route = getRouteString(routePath);
-        }
-        try {
-            decodedLatLng = PolyUtil.decode(route);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        for (LatLng latLng : decodedLatLng) {
-            polylineOptions.add(latLng);
-        }
-        mMap.addPolyline(polylineOptions);
-    }
 
     private void setMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -249,15 +246,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
             }
-            // Show rationale and request permission.
+            // TODO Show rationale and request permission.
         }
         mMap.setMyLocationEnabled(true);
     }
 
-    private String getFormedUrl(String url) {
+    private String getFormedUrl() {
+        String url = getIntent().getExtras().getString("url");
         String number = url.substring(0, url.indexOf(" "));
-        url = getString(R.string.url_ripta) + number;
-        return url;
+        return getString(R.string.url_ripta) + number;
     }
 
     private void setRoutePath(String url){
@@ -312,17 +309,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if(MIDDLE_LOCATION == null){
             MIDDLE_LOCATION = new LatLng(latitude/totalLatLng, -longitude/totalLatLng);
         }
-/*        if(latLongFirst.latitude < latLongLast.latitude) {
-            LatLngBounds middleLatLng = new LatLngBounds(
-                    latLongLast, latLongFirst);
-            MIDDLE_LOCATION = middleLatLng.getCenter();
-            String done = "Done!";
-        }else{
-            LatLngBounds middleLatLng = new LatLngBounds(
-                    latLongFirst, latLongLast);
-            MIDDLE_LOCATION = middleLatLng.getCenter();
-            String done = "Done!";
-        }*/
+
     }
 
     private void setMapInfo(String url){
@@ -351,14 +338,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         }
-/*        LatLngBounds middleLatLng = new LatLngBounds(
-                latLongFirst, latLongLast);*/
 
-//        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(middleLatLng.getCenter(), 20));
-
-/*        if(MIDDLE_LOCATION == null){
-            MIDDLE_LOCATION = new LatLng(latitude/totalLatLng, -longitude/totalLatLng);
-        }*/
         CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(MIDDLE_LOCATION,11);
         mMap.moveCamera(cameraUpdate);
         MIDDLE_LOCATION = null;
@@ -444,22 +424,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return stop;
     }
 
-    @Override
-    public void onLocationChanged(Location location) {
-
-        animateBus(location);
-
-    }
-
-    private void animateBus(Location location) {
-
-//        double[] startValues = new double[]{marker.getPosition().latitude, marker.getPosition().longitude};
-        double[] startValues = new double[]{location.getLatitude(), location.getLongitude()};
-
-//        double[] endValues = new double[]{destLatLng.latitude, destLatLng.longitude};
-        double[] endValues = new double[]{location.getLatitude(), location.getLongitude()};
-
-        ValueAnimator latLngAnimator = ValueAnimator.ofObject(new DoubleArrayEvaluator(), startValues, endValues);
+    private void animateBus(LatLng latLngNew, LatLng latLngOld) {
+        ValueAnimator latLngAnimator = ValueAnimator.ofObject(new DoubleArrayEvaluator(), latLngOld, latLngNew);
         latLngAnimator.setDuration(600);
         latLngAnimator.setInterpolator(new DecelerateInterpolator());
         latLngAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -470,7 +436,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
         latLngAnimator.start();
-        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+        LatLng latLng = new LatLng(latLngNew.latitude, latLngNew.longitude);
         markerOptions.position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
     }
 
@@ -511,20 +477,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
- /*   private void getGPSLocation(String url ){
-        LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        LocationListener listener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-
-            }
-//            ...
-        };
-                String GPS_PROVIDER = "";
-                String intervall = "";
-        long distance = 1222;
-        locationManager.requestLocationUpdates(GPS_PROVIDER, intervall, distance, listener);
-    }*/
+    private Button createButton(String buttonName) {
+        Button button = new Button(this);
+        button.setText("Click me");
+//        button.setOnClickListener();
+        addContentView(button, new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT));
+        return button;
+    }
 
 
+    @Override
+    public void onLocationChanged(Location location) {
+
+    }
 }
