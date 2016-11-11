@@ -37,11 +37,17 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.PolyUtil;
 
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener {
 
@@ -55,6 +61,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private List<LatLng> decodedLatLngList;
     Runnable runnable;
     private boolean isRunnablePosted = false;
+
+    // Vehicle info constant
+    public static final int BUS_ID = 0;
+    public static final int LATITUDE = 1;
+    public static final int LONGITUDE = 2;
+    public static final int TIMESTAMP = 3;
+
+    private int fileNumber = 0;
+    private String route_id = "";
+    private long delayTIme = 0;
+    private long oldTimestamp = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,7 +116,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Handler handler = new Handler();
         if (hasFocus && !isRunnablePosted) {
             isRunnablePosted = handler.postDelayed(runnable, 1000);
-        } else {
+        } else if(!hasFocus && isRunnablePosted){
             handler.removeCallbacks(runnable);
             isRunnablePosted = false;
         }
@@ -118,14 +135,80 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         try {
             mMap = googleMap;
-            setMyLocation();
             String url = getFormedUrl();
+            route_id = getUrlNumber(url);
+            setMyLocation();
             setRoutePath(url);
             setMapInfo(url);
-            runUpdaterThread(url);
+            manageThreads(route_id);
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void manageThreads(String route_id) {
+        for(int i = 0; i < 2; i++) {
+            final Map<String, List<String>> busInfoMap = getBusInfoMap(route_id);
+            fileNumber++;
+            Runnable runnable1;
+            final Handler handler = new Handler();
+            for(int j = 0; j < busInfoMap.size(); j++){
+                runnable1 = new Runnable() {
+                    @Override
+                    public void run() {
+                        animateMarker(busInfoMap);
+                        handler.postDelayed(this, delayTIme);
+                    }
+                };
+
+                handler.postDelayed(runnable1, 10);
+
+            }
+/*            final Handler handler = new Handler();
+            runnable = new Runnable(){
+                @Override
+                public void run() {
+                    animateMarker(busInfoMap);
+                    handler.postDelayed(this, delayTIme);
+                }
+            };*/
+        }
+
+    }
+
+    private Map<String,List<String>> getBusInfoMap(String route_id) {
+        Map<String,List<String>> busInfoMap = new HashMap<>();
+        List<String> busInfoList = getBusInfoList(route_id);
+        return busInfoMap;
+    }
+
+    private List<String> getBusInfoList(String route_id) {
+        List<String> busInfoList = new ArrayList<>();
+        JSONParser jsonParser = new JSONParser();
+        try {
+            Object obj = jsonParser.parse("C:\\Users\\Robert\\AndroidstudioProjects\\BusTrackRI\\app\\src\\main\\res\\raw\\bus_api_file" + String.valueOf(fileNumber) + ".txt");
+            JSONObject jsonObject = (JSONObject) obj;
+            JSONArray jsonArray = (JSONArray) jsonObject.get("entity");
+            for(int i = 0; i < jsonArray.size(); i++){
+
+                JSONObject entityJsonObject = (JSONObject) jsonArray.get(i);
+                JSONObject vehicleJsonObject = (JSONObject) entityJsonObject.get("vehicle");
+                String busIdJsonObject = (String) vehicleJsonObject.get("id");
+                if(busIdJsonObject == route_id){
+                    JSONObject positionJSONObject = (JSONObject) vehicleJsonObject.get("position");
+                    String latitude = (String) positionJSONObject.get("latitude");
+                    String longitude = (String) positionJSONObject.get("longitude");
+                    String timestamp = (String) vehicleJsonObject.get("timestamp");
+                    busInfoList.add(latitude);
+                    busInfoList.add(longitude);
+                    busInfoList.add(timestamp);
+                }
+
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return busInfoList;
     }
 
     private List<LatLng> getListDecodedLatLng(String url) {
@@ -151,12 +234,49 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Toast.makeText(ctx, "Hi!", Toast.LENGTH_SHORT).show();
     }
 
-    private void animateMarker(String url) {
+    private void animateMarker(Map<String, List<String>> busInfoMap) {
+
+        List<String> busInfoList = busInfoMap.get(route_id);
+        long latitude = Integer.valueOf(busInfoList.get(LATITUDE));
+        long longitude = Integer.valueOf(busInfoList.get(LONGITUDE));
+
+        long currenTimestamp = System.currentTimeMillis();
+        long timestamp = Integer.valueOf(busInfoList.get(TIMESTAMP));
+
+        delayTIme = oldTimestamp - currenTimestamp;
+
+        LatLng latLngNew = new LatLng(latitude, longitude);
+        if (markerOptions == null) {
+            markerOptions = new MarkerOptions();
+        }
+
+        if (marker != null) {
+//            marker.remove();
+//            latLngOld = marker.getPosition();
+            oldTimestamp = currenTimestamp;
+            MarkerAnimation markerAnimation = new MarkerAnimation();
+            markerAnimation.animateMarkerToGB(marker, latLngNew, new LatLngInterpolator.Linear());
+        } else {
+            markerOptions = new MarkerOptions();
+            markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
+            marker = mMap.addMarker(markerOptions);
+//            latLngOld = latLngNew;
+        }
+
+
+
+/*        markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
+        marker = mMap.addMarker(markerOptions);
+        */
+        latLngIndex++;
+    }
+
+    /*private void animateMarker(String url) {
 
         LatLng latLngOld;
         LatLng latLngNew;
 
-        if (false /*connect to Ripta*/) {
+        if (false *//*connect to Ripta*//*) {
             latLngNew = riptaAPICoordinates(url);
         } else {
             latLngNew = fileAPICoordinates(url);
@@ -181,12 +301,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
 
-/*        markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
+*//*        markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
         marker = mMap.addMarker(markerOptions);
-        */
+        *//*
         latLngIndex++;
     }
-
+*/
     private LatLng fileAPICoordinates(String url) {
         List<LatLng> decodedLatLngList = getListDecodedLatLng(url);
         return decodedLatLngList.get(latLngIndex);
@@ -221,20 +341,61 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
     private LatLng riptaAPICoordinates(String url) {
+//        locationManager.requestLocationUpdates(GPS_PROVIDER, intervall, distance, (android.location.LocationListener) listener);
         return new LatLng(0, 0);
     }
 
-    private void runUpdaterThread(final String url) {
+   /* private void runUpdaterThread(final String url) {
+
+        Map<String,List<String>> runnableMap = new HashMap<>();
+        List<String> vehichleLocationData = getListVehichleLocationData(url);
+        runnableMap.put("bus_id_or_#", vehichleLocationData);
+        List<Map> listOfMaps = new ArrayList<>();
+        listOfMaps.add(runnableMap);
+        Runnable runnable1;
+        final Handler handler1 = new Handler();
+        for(int i = 0; i < listOfMaps.size(); i++){
+            runnable1 = new Runnable() {
+                @Override
+                public void run() {
+                    animateMarker(url);
+                    handler1.postDelayed(this, 3000);
+                }
+            };
+
+            handler1.postDelayed(runnable1, 10);
+
+        }
         final Handler handler = new Handler();
         runnable = new Runnable(){
             @Override
             public void run() {
                 animateMarker(url);
-                handler.postDelayed(this, 5000);
+                handler.postDelayed(this, 3000);
             }
         };
 
-        handler.postDelayed(runnable, 1000);
+        handler.postDelayed(runnable, 10);
+        String string = "bla";
+        String string1 = "bla";
+        String string2 = "bla";
+        String string3 = "bla";
+        String string4 = "bla";
+        String string5 = "bla";
+        String string6 = "bla";
+        String string7 = "bla";
+        String string8 = "bla";
+        String string9 = "bla";
+        String string0 = "bla";
+        String string10 = "bla";
+        String string11 = "bla";
+        String string12 = "bla";
+        String string14 = "bla";
+        String string16 = "bla";
+    }*/
+
+    private List<String> getListVehichleLocationData(String url) {
+        return new ArrayList<String>(10);
     }
 
 
@@ -249,6 +410,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // TODO Show rationale and request permission.
         }
         mMap.setMyLocationEnabled(true);
+    }
+
+    private String getUrlNumber(String url){
+        return url.substring(url.lastIndexOf("/"), url.length());
     }
 
     private String getFormedUrl() {
