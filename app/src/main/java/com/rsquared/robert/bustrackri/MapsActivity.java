@@ -214,7 +214,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     @Override
                     public void run() {
                         try {
-                            final Map<String, List<List<String>>> busInfoListMap = getBusInfoListMap(route_id, finalMarker);
+                            final Map<String, List<List<String>>> busInfoListMap = getBusInfoListMap(route_id);
                             for(int i = 0; i < busInfoListMap.get(route_id).size(); i++) {
                                 new MyTask().execute();
                                 animateMarkers(busInfoListMap, finalMarker, i);
@@ -241,11 +241,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private Map<String, List<List<String>>> getBusInfoMap(String route_id) {
-        Map<String, List<List<String>>> busInfoMap = getBusInfoListMap(route_id, null);
+        Map<String, List<List<String>>> busInfoMap = getBusInfoListMap(route_id);
         return busInfoMap;
     }
 
-    private Map<String, List<List<String>>> getBusInfoListMap(String route_id, Marker marker) {
+    private Map<String, List<List<String>>> getBusInfoListMap(String route_id) {
         Map<String, List<List<String>>> busInfoMap = new HashMap<>();
         List<String> busInfoList;
         List<List<String>> busInfoListList = new ArrayList<>();
@@ -341,7 +341,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Toast.makeText(ctx, "Hi!", Toast.LENGTH_SHORT).show();
     }
 
-    private void animateMarkers(Map<String, List<List<String>>> busInfoListMap, Marker finalMarker, int arrayIndex) {
+    private void animateMarkers(Map<String, List<List<String>>> busInfoListMap, Marker marker, int arrayIndex) {
 
         try {
 
@@ -359,9 +359,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             LatLng latLngNew = new LatLng(latitude, longitude);
             if (markerOptions == null) {
                 markerOptions = new MarkerOptions();
-                markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk)).snippet("This is bus " + route_id + " Snippet")
+                markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk)).snippet("This is bus " + route_id + " Snippet");
             }
-            Marker marker = marker = mMap.addMarker(markerOptions);
+            if(marker != null){
+                marker.remove();
+            }
+            marker = mMap.addMarker(markerOptions);
             MarkerAnimation markerAnimation = new MarkerAnimation();
             markerAnimation.animateMarkerToGB(marker, latLngNew, new LatLngInterpolator.Linear());
             marker = mMap.addMarker(markerOptions);
@@ -711,7 +714,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 double[] animatedValue = (double[]) animation.getAnimatedValue();
-                marker.setPosition(new LatLng(animatedValue[0], animatedValue[1]));
+//                marker.setPosition(new LatLng(animatedValue[0], animatedValue[1]));
             }
         });
         latLngAnimator.start();
