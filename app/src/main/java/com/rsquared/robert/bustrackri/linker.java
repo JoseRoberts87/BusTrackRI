@@ -19,7 +19,7 @@ public class Linker {
 
 	public static void main(String[] args) {
 		long startMain = System.currentTimeMillis();
-		String folderPath = "C:\\Users\\Robert\\workspace_jee_rir\\Jose\\DataFiles\\";
+		String folderPath = "C:\\Users\\R^2\\AndroidStudioProjects\\BusTrackRI\\app\\src\\main\\res\\raw\\google_transit";
 		List<String> filePathList = getFilePathList(folderPath);
 		/*
 		 * Map<String, List<String>> fileDataMap = readFiles(filePathList);
