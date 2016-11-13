@@ -55,7 +55,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     private static LatLng MIDDLE_LOCATION = null;
-    private Marker marker = null;
     private MarkerOptions markerOptions = null;
     final private Context context = this.getBaseContext();
     //    private Handler handler;
@@ -196,28 +195,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private void manageThreads(String route_id) {
+    private void manageThreads(final String route_id) {
         int counter = 0;
         while (textResult.isEmpty()) {
             Log.i("ManageThread", "manageThreads: " + counter++);
         }
-        final Map<String, List<List<String>>> busInfoListMap = getBusInfoListMap(route_id);
-        for(int i = 0; i < busInfoListMap.get(route_id).size(); i++) {
+
 //            final Map<String, List<String>> busInfoMap = getBusInfoMap(route_id, i);
 //            final List<String> busInfoList = getBusInfoList(route_id);
             fileNumber++;
-            Runnable runnable1;
+            final Runnable runnable1;
 
-
+            Marker marker = null;
             final Handler handler = new Handler();
 //            for(int j = 0; j < busInfoMap.size(); j++){
-            final int finalI = i;
-            runnable1 = new Runnable() {
+        final Marker finalMarker = marker;
+        runnable1 = new Runnable() {
                     @Override
                     public void run() {
                         try {
-                            new MyTask().execute();
-                            animateMarkers(busInfoListMap, finalI);
+                            final Map<String, List<List<String>>> busInfoListMap = getBusInfoListMap(route_id, finalMarker);
+                            for(int i = 0; i < busInfoListMap.get(route_id).size(); i++) {
+                                new MyTask().execute();
+                                animateMarkers(busInfoListMap, finalMarker, i);
+                            }
                             handler.postDelayed(this, delayTIme);
                         }catch (Exception e){
                             e.printStackTrace();
@@ -227,7 +228,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 handler.postDelayed(runnable1, 10);
 
-            }
 /*            final Handler handler = new Handler();
             runnable = new Runnable(){
                 @Override
@@ -241,24 +241,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private Map<String, List<List<String>>> getBusInfoMap(String route_id) {
-        Map<String, List<List<String>>> busInfoMap = getBusInfoListMap(route_id);
+        Map<String, List<List<String>>> busInfoMap = getBusInfoListMap(route_id, null);
         return busInfoMap;
     }
 
-    private Map<String, List<List<String>>> getBusInfoListMap(String route_id) {
+    private Map<String, List<List<String>>> getBusInfoListMap(String route_id, Marker marker) {
         Map<String, List<List<String>>> busInfoMap = new HashMap<>();
         List<String> busInfoList;
         List<List<String>> busInfoListList = new ArrayList<>();
         JSONParser jsonParser = new JSONParser();
         String fileNumberString = String.valueOf(fileNumber + 1);
-        String jsonFile;
+        String jsonFile = "";
         if(!textResult.isEmpty()){
 //            jsonFile = readAPIFile();
             jsonFile = textResult;
-        }else{
-            jsonFile = readRawFile("vehicleposition" +fileNumberString);
         }
 
+
+        if(!jsonFile.contains("route_id/" + route_id)) {
+            jsonFile = readRawFile("vehicleposition" + fileNumberString);
+        }
         try {
             JSONObject obj =  (JSONObject) jsonParser.parse(jsonFile);
             JSONArray jsonArray = (JSONArray) obj.get("entity");
@@ -339,7 +341,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Toast.makeText(ctx, "Hi!", Toast.LENGTH_SHORT).show();
     }
 
-    private void animateMarkers(Map<String, List<List<String>>> busInfoListMap, int arrayIndex) {
+    private void animateMarkers(Map<String, List<List<String>>> busInfoListMap, Marker finalMarker, int arrayIndex) {
 
         try {
 
@@ -357,23 +359,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             LatLng latLngNew = new LatLng(latitude, longitude);
             if (markerOptions == null) {
                 markerOptions = new MarkerOptions();
-            }
-
-            if (marker != null) {
-//            marker.remove();
-//            latLngOld = marker.getPosition();
-//                oldTimestamp = currenTimestamp;
-                MarkerAnimation markerAnimation = new MarkerAnimation();
-                markerAnimation.animateMarkerToGB(marker, latLngNew, new LatLngInterpolator.Linear());
-                marker.showInfoWindow();
-            } else {
-                markerOptions = new MarkerOptions();
                 markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk)).snippet("This is bus " + route_id + " Snippet")
-                .title("Bus " + route_id + " Lat: " + latitude + ", Lng: " + longitude);
-                marker = mMap.addMarker(markerOptions);
-                marker.showInfoWindow();
-//            latLngOld = latLngNew;
             }
+            Marker marker = marker = mMap.addMarker(markerOptions);
+            MarkerAnimation markerAnimation = new MarkerAnimation();
+            markerAnimation.animateMarkerToGB(marker, latLngNew, new LatLngInterpolator.Linear());
+            marker = mMap.addMarker(markerOptions);
+            marker.showInfoWindow();
+            markerOptions = new MarkerOptions();
+            markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk)).snippet("This is bus " + route_id + " Snippet")
+            .title("Bus " + route_id + " Lat: " + latitude + ", Lng: " + longitude);
+
+            marker.showInfoWindow();
+//            latLngOld = latLngNew;
 
 
 
