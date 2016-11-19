@@ -139,6 +139,7 @@ public class MainActivity extends AppCompatActivity
         WebView webView = (WebView) findViewById(R.id.webView);
         webView.setWebViewClient(new WebViewClient(this));
         webView.loadUrl("http://m.ripta.com/1");
+//        webView.loadUrl("http://192.168.1.151:8080/ChurchRecord/WebTest/index.html");
 
     }
 }

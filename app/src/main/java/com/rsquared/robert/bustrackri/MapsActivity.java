@@ -15,6 +15,7 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
 import android.view.animation.LinearInterpolator;
@@ -22,7 +23,9 @@ import android.widget.Button;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -34,6 +37,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.MarkerManager;
 import com.google.maps.android.PolyUtil;
 
 import org.json.simple.JSONArray;
@@ -47,36 +51,54 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener {
 
     private GoogleMap mMap;
     private static LatLng MIDDLE_LOCATION = null;
-    private MarkerOptions markerOptions = null;
+//    private MarkerOptions markerOptions = null;
     final private Context context = this.getBaseContext();
     //    private Handler handler;
     private int latLngIndex = 0;
     private List<LatLng> decodedLatLngList;
-    Runnable runnable;
     private boolean isRunnablePosted = false;
+//    protected Location currentLocation;
 
     // Vehicle info constant
-    public static final int BUS_ID = 0;
     public static final int LATITUDE = 0;
     public static final int LONGITUDE = 1;
-    public static final int TIMESTAMP = 3;
+    public static final int STOP_ID = 3;
+    public static final int START_TIME = 3;
+    public static final int TRIP_ID = 3;
+    public static final int BEARING = 3;
 
     private int fileNumber = 0;
     private String route_id = "";
-    private long delayTIme = 5000;
-    private long oldTimestamp = 0;
-
+    private long delayTIme = 20000;
+    private long DELAY_URL_TRHEAD = 17;
+    private long DELAY_JSON_THREAD = 6500;
+    private boolean attemptedTosetJson = false;
+    private Map<String, List<String>> busInfoListMap;
+    private Map<String, List<Marker>> markerMap;
+    private MarkerManager markerManager;
+    private MarkerManager.Collection markerManagerCollection;
+    private List<String> busIdList;
+//    private MarkerController markerController;
+    private Set<MarkerController> markerControllerSet;
     private String apiURL = "";
 
-    String textResult;
+    String textResult = "";
 
 
     private class MyTask extends AsyncTask<Void, Void, Void> {
@@ -84,28 +106,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         @Override
         protected Void doInBackground(Void... params) {
-            URL textUrl;
-
-            try {
-                textUrl = new URL(apiURL);
-                BufferedReader bufferReader = new BufferedReader(
-                        new InputStreamReader(textUrl.openStream()));
-                String stringBuffer;
-                String stringText = "";
-                while((stringBuffer = bufferReader.readLine()) != null) {
-                    stringText += stringBuffer;
-                }
-
-                bufferReader.close();
-                textResult = stringText;
-
-            } catch(MalformedURLException e) {
-                e.printStackTrace();
-//                textResult = e.toString();
-            } catch(IOException e) {
-                e.printStackTrace();
-//                textResult = e.toString();
-            }
+            setJSONFromURL();
             return null;
         }
 
@@ -115,7 +116,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             super.onPostExecute(result);
             String newString = " ";
             newString = "do something";
-
+            new MyTask().execute();
         }
     }
 
@@ -126,10 +127,75 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        init();
+
         mapFragment.getMapAsync(this);
+
         apiURL = getString(R.string.api_url);
-        new MyTask().execute();
+//        new MyTask().execute();
+
+        manageURLThread();
         String jsonFile = textResult;
+    }
+
+    private void init() {
+        route_id = getUrlNumber(getFormedUrl());
+        markerControllerSet = new HashSet<>();
+        markerManager = new MarkerManager(mMap);
+        markerManagerCollection = markerManager.newCollection();
+//        setJSONFromURL();
+//        setBusInfoListMap(route_id);
+    }
+
+    private Runnable runnable = new Runnable(){
+
+        @Override
+        public void run() {
+
+        }
+    };
+
+    private void manageURLThread() {
+
+        final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+
+                setJSONFromURL();
+//                setBusInfoListMap(route_id);
+                attemptedTosetJson = true;
+                String threadName = Thread.currentThread().getName();
+                Log.i("manageURLGET","Done Thread: " + threadName);
+                Log.i("textResult","JSON: " + textResult);
+                try {
+                    this.finalize();
+                } catch (Throwable throwable) {
+                    throwable.printStackTrace();
+                }
+            }
+        };
+        scheduledExecutorService.scheduleWithFixedDelay(runnable, DELAY_URL_TRHEAD, DELAY_URL_TRHEAD, TimeUnit.SECONDS);
+        scheduledExecutorService.submit(runnable);
+    }
+
+    private void manageMarkerThreads(){
+        while(!attemptedTosetJson){
+            // Wait
+        }
+        setBusInfoListMap(route_id);
+        final Handler handler = new Handler();
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                setBusInfoListMap(route_id);
+                handler.postDelayed(this, DELAY_JSON_THREAD);
+            }
+        };
+        handler.post(runnable);
+
     }
 
     @Override
@@ -184,71 +250,159 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         try {
             mMap = googleMap;
+            manageMarkerThreads();
             String url = getFormedUrl();
-            route_id = getUrlNumber(url);
             setMyLocation();
             setRoutePath(url);
             setMapInfo(url);
-            manageThreads(route_id);
+//            animateMarkers();
+//            manageThreads(route_id);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    private void animateMarkers() {
+
+        Thread thread = new Thread();
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+
+                setBusInfoListMap(route_id);
+            }
+        };
+
+
+    }
+
+    private void setJSONFromURL(){
+        URL textUrl;
+
+        try {
+            textUrl = new URL(apiURL);
+            BufferedReader bufferReader = new BufferedReader(
+                    new InputStreamReader(textUrl.openStream()));
+            String stringBuffer;
+            String stringText = "";
+            while((stringBuffer = bufferReader.readLine()) != null) {
+                stringText += stringBuffer;
+            }
+
+            bufferReader.close();
+            textResult = stringText;
+
+        } catch(MalformedURLException e) {
+            e.printStackTrace();
+//                textResult = e.toString();
+        } catch(IOException e) {
+            e.printStackTrace();
+//                textResult = e.toString();
+        }
+    }
+
     private void manageThreads(final String route_id) {
-        int counter = 0;
-        while (textResult.isEmpty()) {
-            Log.i("ManageThread", "manageThreads: " + counter++);
+        while (!attemptedTosetJson) {
+//            Log.i("ManageThread", "wait for setJSONFromURL() to start manageThreads: " + counter++);
         }
 
-//            final Map<String, List<String>> busInfoMap = getBusInfoMap(route_id, i);
-//            final List<String> busInfoList = getBusInfoList(route_id);
-            fileNumber++;
-            final Runnable runnable1;
+        int counter = 0;
 
-            Marker marker = null;
-            final Handler handler = new Handler();
-//            for(int j = 0; j < busInfoMap.size(); j++){
-        final Marker finalMarker = marker;
-        runnable1 = new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            final Map<String, List<List<String>>> busInfoListMap = getBusInfoListMap(route_id);
-                            for(int i = 0; i < busInfoListMap.get(route_id).size(); i++) {
-                                new MyTask().execute();
-                                animateMarkers(busInfoListMap, finalMarker, i);
-                            }
-                            handler.postDelayed(this, delayTIme);
-                        }catch (Exception e){
-                            e.printStackTrace();
+        while (busInfoListMap.size() == 0) {
+            Log.i("ManageThread", "wait for busInfoListMap to start manageThreads: " + counter++);
+        }
+
+        fileNumber++;
+        final Handler handler = new Handler();
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                try {
+//                    int i = 0;
+                    Marker marker = null;
+                    MarkerAnimation markerAnimation = null;
+                    MarkerOptions markerOptions = null;
+                    Location currentLocation;
+
+
+                    for(int i = 0; i < busInfoListMap.get(route_id).size(); i++) {
+/*                        if(marker != null){
+                            marker.remove();
+                        }*/
+                        LatLng latLng = new LatLng(Double.parseDouble(busInfoListMap.get(busIdList.get(i)).
+                                get(LATITUDE)), Double.parseDouble(busInfoListMap.get(busIdList.get(i)).get(LONGITUDE)));
+                        currentLocation = new Location(String.valueOf(latLng));
+                        if(markerOptions == null){
+
+
+/*                            LocationListener locationListener = new LocationListener() {
+                                @Override
+                                public void onLocationChanged(Location location) {
+                                    Log.i("LocationListener", "Location was changed yeaahahahahahhahahahaha");
+                                }
+                            };
+                            if (locationListener != null && currentLocation != null) {
+                                locationListener.onLocationChanged(currentLocation);
+                            }*/
+                            markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+                                    .snippet("This is bus " + route_id + " Snippet").title("Bus " + route_id + " Lat: " + latLng.latitude + ", Lng: " + latLng.longitude);
                         }
+                        if(marker == null) {
+                            marker = mMap.addMarker(markerOptions);
+                        }
+                        if(markerAnimation == null) {
+                            markerAnimation = new MarkerAnimation();
+                        }
+
+                        animateMarkers(marker, markerOptions, markerAnimation, currentLocation, i);
+                        Log.i("animateMarker", "busInfoListMap: " + busInfoListMap + ". timestamp: " + System.currentTimeMillis());
                     }
-                };
-
-                handler.postDelayed(runnable1, 10);
-
-/*            final Handler handler = new Handler();
-            runnable = new Runnable(){
-                @Override
-                public void run() {
-                    animateMarker(busInfoMap);
-                    handler.postDelayed(this, delayTIme);
+                    handler.postDelayed(this, DELAY_JSON_THREAD);
+                }catch (Exception e){
+                    e.printStackTrace();
                 }
-            };*/
-//        }
-
+            }
+        };
+        for(int i = 0; i < busInfoListMap.size(); i++) {
+            handler.post(runnable);
+        }
     }
 
-    private Map<String, List<List<String>>> getBusInfoMap(String route_id) {
-        Map<String, List<List<String>>> busInfoMap = getBusInfoListMap(route_id);
+    private void updateAPIFile(){
+        URL textUrl;
+
+        try {
+            textUrl = new URL(apiURL);
+            BufferedReader bufferReader = new BufferedReader(
+                    new InputStreamReader(textUrl.openStream()));
+            String stringBuffer;
+            String stringText = "";
+            while((stringBuffer = bufferReader.readLine()) != null) {
+                stringText += stringBuffer;
+            }
+
+            bufferReader.close();
+            textResult = stringText;
+        } catch(MalformedURLException e) {
+            e.printStackTrace();
+//                textResult = e.toString();
+        } catch(IOException e) {
+            e.printStackTrace();
+//                textResult = e.toString();
+        }
+    }
+
+/*    private Map<String, List<List<String>>> getBusInfoMap(String route_id) {
+        Map<String, List<List<String>>> busInfoMap = setBusInfoListMap(route_id);
         return busInfoMap;
-    }
+    }*/
 
-    private Map<String, List<List<String>>> getBusInfoListMap(String route_id) {
-        Map<String, List<List<String>>> busInfoMap = new HashMap<>();
+    private Map<String, List<String>> setBusInfoListMap(String route_id) {
+//        Map<String, List<List<String>>> busInfoMap = new HashMap<>();
+
         List<String> busInfoList;
-        List<List<String>> busInfoListList = new ArrayList<>();
+//        List<List<String>> busInfoListList = new ArrayList<>();
         JSONParser jsonParser = new JSONParser();
         String fileNumberString = String.valueOf(fileNumber + 1);
         String jsonFile = "";
@@ -257,35 +411,199 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             jsonFile = textResult;
         }
 
-
-        if(!jsonFile.contains("route_id/" + route_id)) {
+        String jsonField = getJsonField("route_id", route_id);
+        if(!jsonFile.contains(jsonField)) {
             jsonFile = readRawFile("vehicleposition" + fileNumberString);
         }
         try {
             JSONObject obj =  (JSONObject) jsonParser.parse(jsonFile);
             JSONArray jsonArray = (JSONArray) obj.get("entity");
+            busInfoListMap = new HashMap<>();
+            busIdList = new ArrayList<>();
             for(int i = 0; i < jsonArray.size(); i++){
                 busInfoList = new ArrayList<>();
                 JSONObject entityJsonObject = (JSONObject) jsonArray.get(i);
                 JSONObject vehicleJsonObject = (JSONObject) entityJsonObject.get("vehicle");
                 JSONObject tripJsonObject = (JSONObject) vehicleJsonObject.get("trip");
                 String routeIdJsonObject = (String) tripJsonObject.get("route_id");
-                if(routeIdJsonObject.equalsIgnoreCase(route_id)){
+
+                if(routeIdJsonObject.equalsIgnoreCase(route_id)) {
                     JSONObject positionJSONObject = (JSONObject) vehicleJsonObject.get("position");
-                    double latitude = (double) positionJSONObject.get("latitude");
-                    double longitude = (double) positionJSONObject.get("longitude");
-                    long timestamp = (long) vehicleJsonObject.get("timestamp");
-                    busInfoList.add(String.valueOf(latitude));
-                    busInfoList.add(String.valueOf(longitude));
-                    busInfoList.add(String.valueOf(timestamp));
-                    busInfoListList.add(busInfoList);
+                    JSONObject vehicleVehicleObject = (JSONObject) vehicleJsonObject.get("vehicle");
+
+                    if (!busInfoList.contains(vehicleVehicleObject.get("label"))) {
+
+                        double latitude = (double) positionJSONObject.get("latitude");
+                        double longitude = (double) positionJSONObject.get("longitude");
+                        long timestamp = (long) vehicleJsonObject.get("timestamp");
+                        String stopId = (String) vehicleJsonObject.get("stop_id");
+                        String startTime = (String) tripJsonObject.get("start_time");
+                        String tripId = (String) tripJsonObject.get("trip_id");
+                        double bearing = (double) positionJSONObject.get("bearing");
+                        String label = (String) vehicleVehicleObject.get("label");
+                        busInfoList.add(String.valueOf(latitude));
+                        busInfoList.add(String.valueOf(longitude));
+                        busInfoList.add(String.valueOf(timestamp));
+                        busInfoList.add(String.valueOf(stopId));
+                        busInfoList.add(String.valueOf(startTime));
+                        busInfoList.add(String.valueOf(tripId));
+                        busInfoList.add(String.valueOf(bearing));
+                        busInfoList.add(String.valueOf(label));
+//                    busInfoListList.add(busInfoList);
+                        busIdList.add(label);
+                        busInfoListMap.put(label, busInfoList);
+//                    MarkerOptions markerOptions = new MarkerOptions().position(new LatLng(latitude, longitude));
+//                    markerManagerCollection.addMarker(createBusMarkerOptionDefault(new LatLng(latitude, longitude)));
+                        LatLng latLng = new LatLng(latitude, longitude);
+                        Location newLocation = new Location(String.valueOf(latLng));
+
+/*                    LocationListener locationListener = new LocationListener() {
+                        @Override
+                        public void onLocationChanged(Location location) {
+                            Log.i("LocationListener", "Location was changed yeaahahahahahhahahahaha");
+                        }
+                    };*/
+//                    if (locationListener != null && markerController.location != null) {
+//                        onLocationChanged(markerController.getLocation());
+//                    }
+
+//                    if (currentLocation == null) {
+//                        currentLocation = newLocation;
+//                    } else if(currentLocation != newLocation ) {
+//                        currentLocation.setLatitude(latitude);
+//                        currentLocation.setLongitude(longitude);
+//                    }
+
+                        MarkerOptions markerOptions;
+                        Marker marker;
+                        MarkerController markerController;
+                        MarkerAnimation markerAnimation;
+
+                        if (doesMarkerExist(label)) {
+
+                            marker = getMarkerById(label);
+                            markerController = getMarkerControllerById(label);
+
+                            if (hasMarkerLatLngChanged(markerController, latLng)) {
+                                markerAnimation = getMarkerAnimationById(label);
+                                markerController.setLatLng(latLng);
+                                markerController.setLocation(newLocation);
+                                markerController.setRealTime(true);
+                                markerController.setTimeStamp(timestamp);
+                                markerController.setStopId(stopId);
+                                markerController.setBearing(bearing);
+                                markerController.setTripId(tripId);
+                                markerController.setStartTime(startTime);
+                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear());
+                            }
+
+                        } else {
+                            markerOptions = createBusMarkerOptionDefault(latLng);
+                            marker = mMap.addMarker(markerOptions);
+                            markerAnimation = new MarkerAnimation();
+                            markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear());
+
+                            markerController = new MarkerController(marker, label, latLng, timestamp, markerOptions, markerAnimation, true);
+                            markerControllerSet.add(markerController);
+                        }
+                    }
                 }
             }
-            busInfoMap.put(String.valueOf(route_id), busInfoListList);
         }catch (Exception e){
             e.printStackTrace();
         }
-        return busInfoMap;
+        return busInfoListMap;
+    }
+
+    private boolean hasMarkerLatLngChanged(MarkerController markerController, LatLng latLng) {
+        LatLng oldLatLng = markerController.getLatLng();
+//        boolean equalsign = oldLatLng == latLng;    cannot use == to compare
+        boolean equalfunction = oldLatLng.equals(latLng);
+        return !equalfunction;
+    }
+
+    private boolean hasMarkerLocationChanged(MarkerController markerController, Location newLocation) {
+        Location oldLocation = markerController.getLocation();
+        boolean equalsign = oldLocation == newLocation;
+        boolean equalfunction = oldLocation.equals(newLocation);
+        return oldLocation != newLocation;
+    }
+
+    private MarkerAnimation getMarkerAnimationById(String markerId) {
+        MarkerAnimation markerAnimation = null;
+
+        List<MarkerController> markerControllerList = new ArrayList(markerControllerSet);
+
+        for(int i = 0; i < markerControllerList.size(); i++){
+            MarkerController markerController = markerControllerList.get(i);
+            if(markerController.isSameMarkerId(markerId)){
+                markerAnimation = markerController.getMarkerAnimation();
+            }
+        }
+        return markerAnimation;
+    }
+
+    private boolean doesMarkerExist(String markerId){
+        List<MarkerController> markerControllerList = new ArrayList(markerControllerSet);
+        for(int i = 0; i < markerControllerList.size(); i++){
+            if(markerControllerList.get(i).isSameMarkerId(markerId)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Marker getMarkerById(String markerId){
+//        Marker marker = null;
+
+        List<MarkerController> markerControllerList = new ArrayList(markerControllerSet);
+
+        for(int i = 0; i < markerControllerList.size(); i++){
+            MarkerController markerController = markerControllerList.get(i);
+            if(markerController.isSameMarkerId(markerId)){
+                return markerController.getMarker();
+            }
+        }
+        return null;
+    }
+
+    private MarkerController getMarkerControllerById(String markerId){
+        MarkerController markerController = null;
+        List<MarkerController> markerControllerList = new ArrayList(markerControllerSet);
+        for(int i = 0; i < markerControllerList.size(); i++){
+            if( markerControllerList.get(i).isSameMarkerId(markerId)){
+                markerController = markerControllerList.get(i);
+            }
+        }
+        return markerController;
+    }
+
+    private MarkerOptions createBusMarkerOptionDefault(LatLng latLng){
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+                .snippet("This is bus " + route_id + " Snippet").title("Bus " + route_id + " Lat: " + latLng.latitude + ", Lng: " + latLng.longitude);
+        return markerOptions;
+    }
+
+    private MarkerOptions createBusMarkerOptionWithSnippet(LatLng latLng, String snippet){
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+                .snippet(snippet);
+        return markerOptions;
+    }
+
+    private MarkerOptions createBusMarkerOptionWithTitle(LatLng latLng, String title){
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+                .title(title);
+        return markerOptions;
+    }
+    private MarkerOptions createBusMarkerOptionWithSnippetWithTitle(LatLng latLng, String snippet, String title){
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+                .snippet(snippet).title(title);
+        return markerOptions;
+    }
+
+
+    private String getJsonField(String key, String value) {
+        return "\""+key+"\":\""+value+"\"";
     }
 
     private String readAPIFile() {
@@ -341,15 +659,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Toast.makeText(ctx, "Hi!", Toast.LENGTH_SHORT).show();
     }
 
-    private void animateMarkers(Map<String, List<List<String>>> busInfoListMap, Marker marker, int arrayIndex) {
+    private void animateMarkers(Marker marker, MarkerOptions markerOptions, MarkerAnimation markerAnimation, Location currentLocation, int arrayIndex) {
 
         try {
 
-//            Map<String, List<List<String>>> busInfoMap = getBusInfoMap(route_id);
-//            for(int i = 0; i <busInfoMap.size(); i++) {
-            List<String> busInfoList = busInfoListMap.get(route_id).get(arrayIndex);
-            double latitude = Double.parseDouble(busInfoList.get(LATITUDE));
-            double longitude = Double.parseDouble(busInfoList.get(LONGITUDE));
+//            List<String> busInfoList = busInfoListMap.get(route_id).get(arrayIndex);
+            double latitude = Double.parseDouble(busInfoListMap.get(busIdList.get(arrayIndex)).get(LATITUDE));
+            double longitude = Double.parseDouble(busInfoListMap.get(busIdList.get(arrayIndex)).get(LONGITUDE));
+
+            double oldLatitude = 0;
+            double oldLongitude = 0;
 
             long currenTimestamp = System.currentTimeMillis();
 //          long timestamp = Integer.valueOf(busInfoList.get(TIMESTAMP));
@@ -357,32 +676,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //            delayTIme = oldTimestamp - currenTimestamp;
 
             LatLng latLngNew = new LatLng(latitude, longitude);
-            if (markerOptions == null) {
-                markerOptions = new MarkerOptions();
-                markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk)).snippet("This is bus " + route_id + " Snippet");
-            }
-            if(marker != null){
-                marker.remove();
-            }
-            marker = mMap.addMarker(markerOptions);
-            MarkerAnimation markerAnimation = new MarkerAnimation();
-            markerAnimation.animateMarkerToGB(marker, latLngNew, new LatLngInterpolator.Linear());
-            marker = mMap.addMarker(markerOptions);
-            marker.showInfoWindow();
-            markerOptions = new MarkerOptions();
-            markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk)).snippet("This is bus " + route_id + " Snippet")
-            .title("Bus " + route_id + " Lat: " + latitude + ", Lng: " + longitude);
-
-            marker.showInfoWindow();
-//            latLngOld = latLngNew;
-
-
-
-/*        markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
-        marker = mMap.addMarker(markerOptions);
-        */
-                latLngIndex++;
+            /*if (markerOptions == null) {
+                markerOptions.position(latLngNew).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+                        .snippet("This is bus " + route_id + " Snippet").title("Bus " + route_id + " Lat: " + latitude + ", Lng: " + longitude);
 //            }
+//            if(marker == null){
+//
+            }else{
+                oldLatitude = marker.getPosition().latitude;
+                oldLongitude = marker.getPosition().longitude;
+//                marker.remove();
+
+            }*/
+
+/*            if(markerAnimation == null){
+                String isnull = "true";
+            }
+            marker = mMap.addMarker(markerOptions);*/
+            markerAnimation.animateMarkerToGB(marker, latLngNew, new LatLngInterpolator.Linear());
+
+            marker.showInfoWindow();
+            latLngIndex++;
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -515,6 +829,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return new ArrayList<String>(10);
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
+                    if (ContextCompat.checkSelfPermission(this,
+                            Manifest.permission.ACCESS_FINE_LOCATION)
+                            == PackageManager.PERMISSION_GRANTED) {
+
+                        mMap.setMyLocationEnabled(true);
+                    }
+
+                } else {
+
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
+                }
+                return;
+
+            // other 'case' lines to check for other
+            // permissions this app might request
+    }
 
     private void setMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -562,7 +903,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
                 if (decodedLatLng != null) {
 
-                    Log.i("decodedLatLng: ", decodedLatLng.toString());
+//                    Log.i("decodedLatLng: ", decodedLatLng.toString());
                     for (LatLng latLng : decodedLatLng) {
                         if(latLng.latitude > 0){
                             latitude += latLng.latitude;
@@ -719,7 +1060,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
         latLngAnimator.start();
         LatLng latLng = new LatLng(latLngNew.latitude, latLngNew.longitude);
-        markerOptions.position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
+//        markerOptions.position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue_small));
     }
 
     public void animateMarker(final Marker marker, final LatLng toPosition,
@@ -770,7 +1111,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onLocationChanged(Location location) {
-
+        Log.i("LocationChanged", "Location has chnged to: " + location.getLatitude() + ", " + location.getLongitude());
     }
 
     public BufferedReader getBufferReaderFromUrl(String apiURL) {
