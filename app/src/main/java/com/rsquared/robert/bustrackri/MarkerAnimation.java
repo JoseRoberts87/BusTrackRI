@@ -23,7 +23,7 @@ import com.google.android.gms.maps.model.LatLng;
         import com.google.android.gms.maps.model.Marker;
 
 public class MarkerAnimation {
-    public void animateMarkerToGB(final Marker marker, final LatLng finalPosition, final LatLngInterpolator latLngInterpolator) {
+    public void animateMarkerToGB(final Marker marker, final LatLng finalPosition, final LatLngInterpolator latLngInterpolator, final MarkerController markerController) {
         final LatLng startPosition = marker.getPosition();
         final Handler handler = new Handler();
         final long start = SystemClock.uptimeMillis();
