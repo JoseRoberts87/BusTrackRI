@@ -29,8 +29,10 @@ public class MarkerController {
     private double bearing;
     private String stopId;
     private String startTime;
+    private float animationDuration;
+    private String directionJson;
 
-    public MarkerController(Marker marker, String markerId, LatLng latLng, long timeStamp, MarkerOptions markerOptions, MarkerAnimation markerAnimation, boolean isRealTime){
+    public MarkerController(Marker marker, String markerId, LatLng latLng, long timeStamp, MarkerOptions markerOptions, MarkerAnimation markerAnimation, float animationDuration, boolean isRealTime){
         this.marker = marker;
         this.markerId = markerId;
         this.latLng = latLng;
@@ -39,6 +41,8 @@ public class MarkerController {
         this.isRealTime = isRealTime;
         this.markerAnimation = markerAnimation;
         this.location = new Location(String.valueOf(latLng));
+        this.animationDuration = animationDuration;
+
     }
 
     public Marker getMarker() {
@@ -182,5 +186,21 @@ public class MarkerController {
 
     public void setStartTime(String startTime) {
         this.startTime = startTime;
+    }
+
+    public float getAnimationDuration() {
+        return animationDuration;
+    }
+
+    public void setAnimationDuration(float animationDuration) {
+        this.animationDuration = animationDuration;
+    }
+
+    public String getDirectionJson() {
+        return directionJson;
+    }
+
+    public void setDirectionJson(String directionJson) {
+        this.directionJson = directionJson;
     }
 }

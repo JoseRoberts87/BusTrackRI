@@ -1,44 +1,36 @@
 package com.rsquared.robert.bustrackri;
 
 import android.Manifest;
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Path;
-import android.graphics.Point;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Handler;
-import android.os.SystemClock;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.WindowManager;
-import android.view.animation.DecelerateInterpolator;
-import android.view.animation.Interpolator;
-import android.view.animation.LinearInterpolator;
-import android.widget.Button;
-import android.widget.RelativeLayout;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.maps.android.MarkerManager;
 import com.google.maps.android.PolyUtil;
 
 import org.json.simple.JSONArray;
@@ -52,19 +44,16 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
     private static LatLng MIDDLE_LOCATION = null;
@@ -73,7 +62,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private int fileNumber = 0;
     private String route_id = "";
     private long delayTIme = 20000;
-    private long DELAY_URL_TRHEAD = 17;
+    private long DELAY_URL_TRHEAD = 9;
     private long DELAY_JSON_THREAD = 6500;
     private boolean attemptedTosetJson = false;
     private Map<String, List<String>> busInfoListMap;
@@ -86,7 +75,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private ScheduledExecutorService scheduledExecutorService;
     private Runnable runnable;
     private String directionURL;
-    private String directionResults = "";
+    private String apiResults = "";
+    private String snapToRoadURL;
+    private String snapToRoadResults = "";
+    protected GoogleApiClient mGoogleApiClient;;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,7 +92,89 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
         apiURL = getString(R.string.api_url);
         manageURLThread();
+
+
     }
+
+    private void testAnimation(boolean b, Marker marker) {
+        try {
+            MarkerOptions markerOptions;
+//            Marker marker = null;
+            MarkerController markerController = null;
+            MarkerAnimation markerAnimation;
+
+            LatLng latLng = new LatLng(41.8249528, -71.4113005);
+            LatLng newLatLng;
+            if (b){
+                double latitude = marker.getPosition().latitude - .0039;
+                double longitude = marker.getPosition().longitude - .000137;
+                newLatLng = new LatLng(latitude, longitude);
+                String origin = latLng.latitude + ","+latLng.longitude;
+                String destination = newLatLng.latitude + "," + newLatLng.longitude;
+
+                getDirectionAPI(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
+                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST,  getString(R.string.google_maps_key));
+                List<String> polylineList = getDirectionJSONPolyLine(markerController);
+//                                for(String polyline: polylinesArray){
+                PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
+
+                for(String polyline: polylineList) {
+                    List<LatLng> latLngList = PolyUtil.decode(polyline);
+                    for (LatLng latLngPolyline : latLngList) {
+                        polylineOptions.add(latLngPolyline);
+                    }
+
+//                                    polylineOptions.addAll(latLngList);
+                }
+                Log.i("polylines" , "polylines = " + polylineList);
+
+                mMap.addPolyline(polylineOptions);
+
+            }else{
+                newLatLng = new LatLng(41.8249528, -71.4113005);
+            }
+
+
+            markerOptions = createBusMarkerOptionDefaultRealTime(latLng, "test_bus");
+            marker = mMap.addMarker(markerOptions);
+            markerAnimation = new MarkerAnimation();
+            markerController = new MarkerController(marker, "test_bus", latLng, System.currentTimeMillis(), markerOptions, markerAnimation, 30000, true);
+            markerControllerSet.add(markerController);
+
+            markerAnimation.animateMarkerToGB(marker, newLatLng, new LatLngInterpolator.Linear(), markerController);
+
+
+
+            mMap.setOnMarkerClickListener(this);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    /** Called when the user clicks a marker. */
+    @Override
+    public boolean onMarkerClick(final Marker marker) {
+
+
+        testAnimation(true, marker);
+        // Retrieve the data from the marker.
+//        Integer clickCount = (Integer) marker.getTag();
+
+        // Check if a click count was set, then display the click count.
+//        if (clickCount != null) {
+//            clickCount = clickCount + 1;
+//            marker.setTag(clickCount);
+            Toast.makeText(this,
+                    marker.getTitle() +
+                            " has been clicked " + /*clickCount*/ " times.",
+                    Toast.LENGTH_SHORT).show();
+
+        // Return false to indicate that we have not consumed the event and that we wish
+        // for the default behavior to occur (which is for the camera to move such that the
+        // marker is centered and for the marker's info window to open, if it has one).
+        return false;
+    }
+
 
     private void init() {
         route_id = getUrlNumber(getFormedUrl());
@@ -228,6 +302,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             setMyLocation();
             setRoutePath(url);
             setMapInfo(url);
+//            testAnimation(false, null);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -328,32 +403,61 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         if (doesMarkerExist(label)) {
                             marker = getMarkerById(label);
                             markerController = getMarkerControllerById(label);
+
                             if (hasMarkerLatLngChanged(markerController, latLng)) {
+                                long oldTimeStamp = markerController.getTimeStamp();
+                                long newTimeStamp = System.currentTimeMillis();
+                                markerController.setTimeStamp(newTimeStamp);
+                                long animationDuration = newTimeStamp - oldTimeStamp;
+
+//                                float animationDuration1000 = animationDuration/1000;
                                 String origin = markerController.getLatLng().latitude + ","+markerController.getLatLng().longitude;
                                 String destination = latLng.latitude + "," + latLng.longitude;
+
+                                // getting polylines from the direction services and adding the lines to the screen
+                                String url = getDirectionAPI(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
+                                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST,  getString(R.string.google_maps_key));
+                                List<String> polylineArray = getDirectionJSONPolyLine(markerController);
+//                                for(String polyline: polylinesArray){
+                                PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
+                                for(String polyline: polylineArray) {
+                                    List<LatLng> latLngList = PolyUtil.decode(polyline);
+                                    Log.i("polylines", "polylines = " + polyline);
+
+                                    for (LatLng latLngPolyline : latLngList) {
+                                        polylineOptions.add(latLngPolyline);
+                                        Log.i("polylines", "latLngPolyline = " + latLngPolyline + " Added!!! ");
+                                    }
+                                }
+//                                    polylineOptions.addAll(latLngList);
+                                mMap.addPolyline(polylineOptions);
+
+                                // Polyline animation
+//                                }
+//                                Log.i("polylines" , "polylines = " + polylinesArray);
 //                                getNearestRoadLocation(latLng);
                                 markerAnimation = getMarkerAnimationById(label);
                                 markerController.setLatLng(latLng);
                                 markerController.setLocation(newLocation);
                                 markerController.setRealTime(true);
-                                markerController.setTimeStamp(timestamp);
+//                                markerController.setTimeStamp(timestamp);
                                 markerController.setStopId(stopId);
                                 markerController.setBearing(bearing);
                                 markerController.setTripId(tripId);
                                 markerController.setStartTime(startTime);
+                                markerController.setAnimationDuration(animationDuration);
                                 markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
-                                getDirections(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
-                                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST);
+
 
                                 Log.i("MarkerAnimation", "Bus Label: " + markerController.getMarkerId() + ", was animated from laLng = " + marker.getPosition() + ", to latLng = " + latLng);
                             }
                         } else {
-                            markerOptions = createBusMarkerOptionDefault(latLng);
+                            markerOptions = createBusMarkerOptionDefaultRealTime(latLng, label);
                             marker = mMap.addMarker(markerOptions);
                             markerAnimation = new MarkerAnimation();
-                            markerController = new MarkerController(marker, label, latLng, timestamp, markerOptions, markerAnimation, true);
+                            markerController = new MarkerController(marker, label, latLng, System.currentTimeMillis(), markerOptions, markerAnimation, System.currentTimeMillis(), true);
                             markerControllerSet.add(markerController);
-                            markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
+//                            markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
                         }
                     }
                 }
@@ -362,6 +466,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             e.printStackTrace();
         }
         return busInfoListMap;
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
     }
 
     private class MyTask extends AsyncTask<Void, Void, Void> {
@@ -381,14 +500,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     stringText += stringBuffer;
                 }
                 bufferReader.close();
-                directionResults = stringText;
-                Log.i("directionResults", "directionResults = " + directionResults);
+                apiResults = stringText;
+                Log.i("directionResults", "directionResults = " + apiResults);
             } catch(MalformedURLException e) {
                 e.printStackTrace();
-                directionResults = e.toString();
+                apiResults = e.toString();
             } catch(IOException e) {
                 e.printStackTrace();
-                directionResults = e.toString();
+                apiResults = e.toString();
             }
             return null;
         }
@@ -400,11 +519,38 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-    private void getDirections(String Origin, String destination, String outputFormat, String travelMode, String transitMode, String departureTime, String trafficModel){
-        String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
-                + "&destination=" + destination + "&key=" + getString(R.string.google_maps_key)+ "&mode=" + travelMode + "&trffic_model=" + trafficModel
+    private String getDirectionAPI(String Origin, String destination, String outputFormat, String travelMode, String transitMode, String departureTime, String trafficModel, String apiKey){
+        /*String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
+                + "&destination=" + destination + "&key=" + getString(R.string.google_maps_key)+ "&mode=" + travelMode + "&traffic_model=" + trafficModel
                 + "&transit_mode=" + transitMode + "&departure_time=" + departureTime;
+        */
+
+        String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
+                + "&destination=" + destination +/* "&key=" + apiKey + */"&mode=" + travelMode + "&traffic_model=" + trafficModel
+                + /*"&transit_mode=" + transitMode +*/ "&departure_time=" + departureTime;
         directionURL = url;
+        Log.i("getDirectionsAPI", " The url to call to Googles Dirrection API is: " + url);
+
+        new MyTask().execute();
+
+     /*   mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(Places.GEO_DATA_API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+        MapsInitializer.initialize(this);
+        mGoogleApiClient.connect();*/
+
+        return url;
+    }
+
+    private void getSnapToRoadsAPI(String Origin, String destination, String apiKey){
+        /*String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
+                + "&destination=" + destination + "&key=" + getString(R.string.google_maps_key)+ "&mode=" + travelMode + "&traffic_model=" + trafficModel
+                + "&transit_mode=" + transitMode + "&departure_time=" + departureTime;
+        */
+        String url =  "https://roads.googleapis.com/v1/snapToRoads?path=" + Origin + "|" + destination + "&key=" + apiKey;
+        snapToRoadURL = url;
         Log.i("getDirectionsAPI", " The url to call to Googles Dirrection API is: " + url);
 //        String directionsJSON = getDirectionJSONFromURL(url);
 //        Log.i("getDirections", "directionsJSON = " + directionsJSON);
@@ -483,6 +629,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private MarkerOptions createBusMarkerOptionDefault(LatLng latLng){
         MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
                 .snippet("This is bus " + route_id + " Snippet").title("Bus " + route_id + " Lat: " + latLng.latitude + ", Lng: " + latLng.longitude);
+        return markerOptions;
+    }
+
+    private MarkerOptions createBusMarkerOptionDefaultRealTime(LatLng latLng, String busLabel){
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+                .snippet("This is bus " + route_id + " Snippet").title("Bus:" + busLabel + " on Route: " + route_id + " Lat: " + latLng.latitude + ", Lng: " + latLng.longitude);
         return markerOptions;
     }
 
@@ -678,6 +830,75 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
     }
+
+    private List<String> getDirectionJSONPolyLine(MarkerController markerController){
+        String polyLines = "";
+        List<String> polyLinesArray = new ArrayList<>();
+        
+        
+//        apiResults = "{\"geocoded_waypoints\":[{\"geocoder_status\":\"OK\",\"place_id\":\"EiozOS00NyBGdWx0b24gU3QsIFByb3ZpZGVuY2UsIFJJIDAyOTAzLCBVU0E\",\"types\":[\"street_address\"]},{\"geocoder_status\":\"OK\",\"place_id\":\"Ei42MS05OSBLZW5uZWR5IFBsYXphLCBQcm92aWRlbmNlLCBSSSAwMjkwMywgVVNB\",\"types\":[\"street_address\"]}],\"routes\":[{\"bounds\":{\"northeast\":{\"lat\":41.82495,\"lng\":-71.4113},\"southwest\":{\"lat\":41.824604,\"lng\":-71.41177}},\"copyrights\":\"Map data ©2016 Google\",\"legs\":[{\"distance\":{\"text\":\"180 ft\",\"value\":55},\"duration\":{\"text\":\"1 min\",\"value\":39},\"end_address\":\"61-99 Fulton St, Providence, RI 02903, USA\",\"end_location\":{\"lat\":41.824604,\"lng\":-71.41177},\"start_address\":\"39-47 Fulton St, Providence, RI 02903, USA\",\"start_location\":{\"lat\":41.82495,\"lng\":-71.4113},\"steps\":[{\"distance\":{\"text\":\"180 ft\",\"value\":55},\"duration\":{\"text\":\"1 min\",\"value\":39},\"end_location\":{\"lat\":41.824604,\"lng\":-71.41177},\"html_instructions\":\"Walk to 61-99 Fulton St, Providence, RI 02903, USA\",\"polyline\":{\"points\":\"}|g~FrozrLT\\\\f@t@FH\"},\"start_location\":{\"lat\":41.82495,\"lng\":-71.4113},\"steps\":[{\"distance\":{\"text\":\"180 ft\",\"value\":55},\"duration\":{\"text\":\"1 min\",\"value\":39},\"end_location\":{\"lat\":41.824604,\"lng\":-71.41177},\"html_instructions\":\"Head <b>southwest<\\/b> toward <b>Dorrance St<\\/b><div style=\\\"font-size:0.9em\\\">Destination will be on the right<\\/div>\",\"polyline\":{\"points\":\"}|g~FrozrLT\\\\f@t@FH\"},\"start_location\":{\"lat\":41.82495,\"lng\":-71.4113},\"travel_mode\":\"WALKING\"}],\"travel_mode\":\"WALKING\"}],\"traffic_speed_entry\":[],\"via_waypoint\":[]}],\"overview_polyline\":{\"points\":\"}|g~FrozrLdA|A\"},\"summary\":\"\",\"warnings\":[\"Walking directions are in beta.    Use caution – This route may be missing sidewalks or pedestrian paths.\"],\"waypoint_order\":[]}],\"status\":\"OK\"}";
+        while(apiResults.isEmpty()){
+            // do nothing...
+        }
+
+        String directionJson = markerController.getDirectionJson();
+        if(directionJson == null){
+            markerController.setDirectionJson(apiResults);
+        } else {
+
+            while (markerController.getDirectionJson().equals(apiResults)) {
+                markerController.setDirectionJson(apiResults);
+            }
+        }
+
+        try {
+            JSONParser jsonParser = new JSONParser();
+            JSONObject directionJSONObject = (JSONObject) jsonParser.parse(apiResults);
+
+            JSONArray routeJsonArray = (JSONArray) directionJSONObject.get("routes");
+            for(int i = 0 ; i < routeJsonArray.size(); i++){
+                JSONObject routeJSONObject = (JSONObject) routeJsonArray.get(i);
+                JSONArray legsJSOJsonArray = (JSONArray) routeJSONObject.get("legs");
+                for(int j = 0; j < legsJSOJsonArray.size(); j++){
+                    JSONObject legJSONObject = (JSONObject) legsJSOJsonArray.get(j);
+
+                    JSONObject durationJSObject = (JSONObject) legJSONObject.get("duration");
+                    String durationText = (String) durationJSObject.get("text");
+                    long durationValue = (long) durationJSObject.get("value");
+
+                    JSONObject distanceJSObject = (JSONObject) legJSONObject.get("distance");
+                    String distanceText = (String) distanceJSObject.get("text");
+                    long distanceValue = (long) distanceJSObject.get("value");
+
+                    JSONArray stepsJSONArray = (JSONArray) legJSONObject.get("steps");
+                    for(int k = 0; k <stepsJSONArray.size(); k++){
+                        JSONObject stepJSONObject = (JSONObject) stepsJSONArray.get(i);
+                        JSONObject polylineJSONObject = (JSONObject) stepJSONObject.get("polyline");
+                        String points = (String) polylineJSONObject.get("points");
+                        polyLinesArray.add(points);
+
+                        JSONArray steps2JSONArray = (JSONArray) legJSONObject.get("steps");
+                        for(int l = 0; l <steps2JSONArray.size(); l++) {
+                            JSONObject step2JSONObject = (JSONObject) steps2JSONArray.get(l);
+                            JSONObject polyline2JSONObject = (JSONObject) step2JSONObject.get("polyline");
+                            String points2 = (String) polyline2JSONObject.get("points");
+//                            polyLinesArray.add(points2);
+                        }
+                    }
+                }
+                JSONObject routeJsonObject = (JSONObject) routeJsonArray.get(0);
+                JSONObject overviewPolyline = (JSONObject) routeJsonObject.get("overview_polyline");
+                String points = (String) overviewPolyline.get("points");
+                polyLines = points;
+//                polyLinesArray.add(polyLines);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return polyLinesArray;
+    }
+
+
 
     private void setMapInfo(String url){
         List<String> arrayMapInfo = getMapInfoAndRoute(url, "var stops");
