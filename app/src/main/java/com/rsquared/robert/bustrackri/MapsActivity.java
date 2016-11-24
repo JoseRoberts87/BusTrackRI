@@ -79,7 +79,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private List<String> busIdList;
     private List<LatLng> mDecodedLatLng;
     private Set<MarkerController> markerControllerSet;
-    private String apiURL = "";
+    private String realTimeURL = "";
     private Handler handler = new Handler();
     private String textResult = "";
     private ScheduledExecutorService scheduledExecutorService;
@@ -94,8 +94,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-
-        // Initialize variables and service calls
+        // Initialize variables and data calls and service calls
         init();
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -103,24 +102,88 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mapFragment.getMapAsync(this);
-
-
     }
 
 
 
     private void init() {
-        apiURL = getString(R.string.real_time_url);
+        // real time api url from ripta
+        realTimeURL = getString(R.string.real_time_url);
         route_id = getUrlNumber(getFormedUrl());
         markerControllerSet = new HashSet<>();
-        pullRealTimeData();
-//        if(!jsonFile.contains(jsonField)) {
-//            jsonFile = readRawFile("vehicleposition" + fileNumberString);
-//        }
-
-
-//        if()
+        manageRouteData();
     }
+
+    private void manageRouteData() {
+
+        // get route data from real time api or from local files (scheduled data)
+        // try first the real data from RIPTA
+        manageRealTimeData();
+
+    }
+
+    private void manageRealTimeData() {
+
+        scheduledExecutorService = Executors.newScheduledThreadPool(1);
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+
+                pullRealTimeData();
+                attemptedTosetJson = true;
+                String threadName = Thread.currentThread().getName();
+                Log.i("manageURLGET","Done Thread: " + threadName);
+                Log.i("textResult","JSON: " + textResult);
+                try {
+                    this.finalize();
+                } catch (Throwable throwable) {
+                    throwable.printStackTrace();
+                }
+            }
+        };
+        scheduledExecutorService.scheduleWithFixedDelay(runnable, DELAY_URL_TRHEAD, DELAY_URL_TRHEAD, TimeUnit.SECONDS);
+        scheduledExecutorService.submit(runnable);
+    }
+
+    private void pullRealTimeData(){
+        URL textUrl;
+        try {
+            textUrl = new URL(realTimeURL);
+            InputStreamReader inputStream = new InputStreamReader(textUrl.openStream());
+            BufferedReader bufferReader = new BufferedReader(inputStream);
+            String stringBuffer;
+            String stringText = "";
+            while((stringBuffer = bufferReader.readLine()) != null) {
+                stringText += stringBuffer;
+            }
+            bufferReader.close();
+            inputStream.close();
+            textResult = stringText;
+        } catch(MalformedURLException e) {
+            e.printStackTrace();
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String readRawFile(String fileName) {
+        String rawFile = "";
+        /*int id = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
+        try {
+            InputStream iS = getResources().openRawResource(id);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                rawFile += line + "\n";
+            }
+        }catch (IOException e) {
+            e.printStackTrace();
+        }*/
+        return rawFile;
+    }
+
+
 
     private void testAnimation(boolean b, Marker marker) {
         try {
@@ -181,112 +244,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public boolean onMarkerClick(final Marker marker) {
 
-
         testAnimation(true, marker);
-        // Retrieve the data from the marker.
-//        Integer clickCount = (Integer) marker.getTag();
 
-        // Check if a click count was set, then display the click count.
-//        if (clickCount != null) {
-//            clickCount = clickCount + 1;
-//            marker.setTag(clickCount);
-            Toast.makeText(this,
-                    marker.getTitle() +
-                            " has been clicked " + /*clickCount*/ " times.",
-                    Toast.LENGTH_SHORT).show();
+        Toast.makeText(this,
+                marker.getTitle() +
+                        " has been clicked " + /*clickCount*/ " times.",
+                Toast.LENGTH_SHORT).show();
 
         // Return false to indicate that we have not consumed the event and that we wish
         // for the default behavior to occur (which is for the camera to move such that the
         // marker is centered and for the marker's info window to open, if it has one).
         return false;
-    }
-
-
-    private void pullRealTimeData() {
-
-        scheduledExecutorService = Executors.newScheduledThreadPool(1);
-
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-
-                realTimeData();
-                attemptedTosetJson = true;
-                String threadName = Thread.currentThread().getName();
-                Log.i("manageURLGET","Done Thread: " + threadName);
-                Log.i("textResult","JSON: " + textResult);
-                try {
-                    this.finalize();
-                } catch (Throwable throwable) {
-                    throwable.printStackTrace();
-                }
-            }
-        };
-        scheduledExecutorService.scheduleWithFixedDelay(runnable, DELAY_URL_TRHEAD, DELAY_URL_TRHEAD, TimeUnit.SECONDS);
-        scheduledExecutorService.submit(runnable);
-    }
-
-    private void manageMarkerThreads(){
-        while(!attemptedTosetJson){
-            // Wait
-        }
-//        setBusInfoListMap(route_id);
-        runnable = new Runnable() {
-            @Override
-            public void run() {
-                setBusInfoListMap(route_id);
-                Log.i("ManageMarkerThread", "MarkerControllerSet = " + markerControllerSet);
-                handler.postDelayed(this, DELAY_JSON_THREAD);
-            }
-        };
-        handler.post(runnable);
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-//        startThreads();
-    }
-
-    @Override
-    protected void onRestart() {
-//        super.onRestart();
-        startThreads();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        startThreads();
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        destroyThreads();
-
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        destroyThreads();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        destroyThreads();
-    }
-
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (hasFocus && !isRunnablePosted) {
-            startThreads();
-        } else if(!hasFocus){
-            destroyThreads();
-        }
     }
 
     private void startThreads() {
@@ -329,26 +297,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private void realTimeData(){
-        URL textUrl;
-        try {
-            textUrl = new URL(apiURL);
-            InputStreamReader inputStream = new InputStreamReader(textUrl.openStream());
-            BufferedReader bufferReader = new BufferedReader(inputStream);
-            String stringBuffer;
-            String stringText = "";
-            while((stringBuffer = bufferReader.readLine()) != null) {
-                stringText += stringBuffer;
-            }
-            bufferReader.close();
-            inputStream.close();
-            textResult = stringText;
-        } catch(MalformedURLException e) {
-            e.printStackTrace();
-        } catch(IOException e) {
-            e.printStackTrace();
+    private void manageMarkerThreads(){
+        while(!attemptedTosetJson){
+            // Wait
         }
+//        setBusInfoListMap(route_id);
+        runnable = new Runnable() {
+            @Override
+            public void run() {
+                setBusInfoListMap();
+                Log.i("ManageMarkerThread", "MarkerControllerSet = " + markerControllerSet);
+                handler.postDelayed(this, DELAY_JSON_THREAD);
+            }
+        };
+        handler.post(runnable);
     }
+
 
     private String getDirectionJSONFromURL(String url){
         URL textUrl;
@@ -370,7 +334,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return json;
     }
 
-    private Map<String, List<String>> setBusInfoListMap(String route_id) {
+    private Map<String, List<String>> setBusInfoListMap() {
         List<String> busInfoList;
         JSONParser jsonParser = new JSONParser();
         String jsonFile = "";
@@ -379,7 +343,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         String jsonField = getJsonField("route_id", route_id);
         if(!jsonFile.contains(jsonField)) {
-            jsonFile = readRawFile("vehicleposition");
+            jsonFile = readRawFile("route_files" + route_id);
         }
         try {
             JSONObject obj =  (JSONObject) jsonParser.parse(jsonFile);
@@ -813,7 +777,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String readAPIFile() {
         String apiFile = "";
-        BufferedReader bufferedReader = getBufferReaderFromUrl(apiURL);
+        BufferedReader bufferedReader = getBufferReaderFromUrl(realTimeURL);
         String inputLine;
         try {
             while ((inputLine = bufferedReader.readLine()) != null) {
@@ -823,22 +787,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             e.printStackTrace();
         }
         return apiFile;
-    }
-
-    private String readRawFile(String fileName) {
-        String rawFile = "";
-        /*int id = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
-        try {
-            InputStream iS = getResources().openRawResource(id);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                rawFile += line + "\n";
-            }
-        }catch (IOException e) {
-            e.printStackTrace();
-        }*/
-        return rawFile;
     }
 
     private List<LatLng> getListDecodedLatLng(String url) {
@@ -1177,5 +1125,54 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             e.printStackTrace();
         }
         return bufferReaderFromUrl;
+    }
+
+    // Activity management to stop and run background threads
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+//        startThreads();
+    }
+
+    @Override
+    protected void onRestart() {
+//        super.onRestart();
+        startThreads();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startThreads();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        destroyThreads();
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        destroyThreads();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        destroyThreads();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && !isRunnablePosted) {
+            startThreads();
+        } else if(!hasFocus){
+            destroyThreads();
+        }
     }
 }
