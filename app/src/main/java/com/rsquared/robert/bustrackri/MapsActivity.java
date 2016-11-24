@@ -1,6 +1,7 @@
 package com.rsquared.robert.bustrackri;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -16,6 +17,8 @@ import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.WindowManager;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -30,6 +33,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.PolyUtil;
 
@@ -41,6 +45,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -53,13 +58,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, GoogleMap.OnMarkerClickListener {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, DirectionFinderListener, LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, GoogleMap.OnMarkerClickListener {
+
+    private EditText etOrigin;
+    private EditText etDestination;
+    private List<Marker> originMarkers = new ArrayList<>();
+    private List<Marker> destinationMarkers = new ArrayList<>();
+    private List<Polyline> polylinePaths = new ArrayList<>();
 
     private GoogleMap mMap;
     private static LatLng MIDDLE_LOCATION = null;
     private int latLngIndex = 0;
     private boolean isRunnablePosted = false;
-    private int fileNumber = 0;
     private String route_id = "";
     private long delayTIme = 20000;
     private long DELAY_URL_TRHEAD = 9;
@@ -84,16 +94,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        // Initialize variables and service calls
+        init();
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        init();
         mapFragment.getMapAsync(this);
-        apiURL = getString(R.string.api_url);
-        manageURLThread();
 
 
+    }
+
+
+
+    private void init() {
+        apiURL = getString(R.string.real_time_url);
+        route_id = getUrlNumber(getFormedUrl());
+        markerControllerSet = new HashSet<>();
+        pullRealTimeData();
+//        if(!jsonFile.contains(jsonField)) {
+//            jsonFile = readRawFile("vehicleposition" + fileNumberString);
+//        }
+
+
+//        if()
     }
 
     private void testAnimation(boolean b, Marker marker) {
@@ -112,8 +138,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 String origin = latLng.latitude + ","+latLng.longitude;
                 String destination = newLatLng.latitude + "," + newLatLng.longitude;
 
-                getDirectionAPI(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
-                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST,  getString(R.string.google_maps_key));
+                pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
+                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST,  markerController);
                 List<String> polylineList = getDirectionJSONPolyLine(markerController);
 //                                for(String polyline: polylinesArray){
                 PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
@@ -176,12 +202,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-    private void init() {
-        route_id = getUrlNumber(getFormedUrl());
-        markerControllerSet = new HashSet<>();
-    }
-
-    private void manageURLThread() {
+    private void pullRealTimeData() {
 
         scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
@@ -189,7 +210,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void run() {
 
-                setJSONFromURL(apiURL);
+                realTimeData();
                 attemptedTosetJson = true;
                 String threadName = Thread.currentThread().getName();
                 Log.i("manageURLGET","Done Thread: " + threadName);
@@ -209,7 +230,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         while(!attemptedTosetJson){
             // Wait
         }
-        setBusInfoListMap(route_id);
+//        setBusInfoListMap(route_id);
         runnable = new Runnable() {
             @Override
             public void run() {
@@ -308,10 +329,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private void setJSONFromURL(String url){
+    private void realTimeData(){
         URL textUrl;
         try {
-            textUrl = new URL(url);
+            textUrl = new URL(apiURL);
             InputStreamReader inputStream = new InputStreamReader(textUrl.openStream());
             BufferedReader bufferReader = new BufferedReader(inputStream);
             String stringBuffer;
@@ -352,14 +373,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Map<String, List<String>> setBusInfoListMap(String route_id) {
         List<String> busInfoList;
         JSONParser jsonParser = new JSONParser();
-        String fileNumberString = String.valueOf(fileNumber + 1);
         String jsonFile = "";
         if(!textResult.isEmpty()){
             jsonFile = textResult;
         }
         String jsonField = getJsonField("route_id", route_id);
         if(!jsonFile.contains(jsonField)) {
-            jsonFile = readRawFile("vehicleposition" + fileNumberString);
+            jsonFile = readRawFile("vehicleposition");
         }
         try {
             JSONObject obj =  (JSONObject) jsonParser.parse(jsonFile);
@@ -415,9 +435,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 String destination = latLng.latitude + "," + latLng.longitude;
 
                                 // getting polylines from the direction services and adding the lines to the screen
-                                String url = getDirectionAPI(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
-                                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST,  getString(R.string.google_maps_key));
+                                pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
+                                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST,  markerController);
                                 List<String> polylineArray = getDirectionJSONPolyLine(markerController);
+
+                                pullRoadAPIData(origin, destination, markerController);
 //                                for(String polyline: polylinesArray){
                                 PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
                                 for(String polyline: polylineArray) {
@@ -483,13 +505,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
-    private class MyTask extends AsyncTask<Void, Void, Void> {
+    private class DirectionServiceTask extends AsyncTask<MarkerController, Void, String> {
 
 //        String textResult;
 
         @Override
-        protected Void doInBackground(Void... params) {
+        protected String doInBackground(MarkerController... params) {
             URL textUrl;
+            String result = "";
             try {
                 textUrl = new URL(directionURL);
                 BufferedReader bufferReader = new BufferedReader(
@@ -500,8 +523,54 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     stringText += stringBuffer;
                 }
                 bufferReader.close();
-                apiResults = stringText;
+                result = stringText;
+                params[0].setDirectionJson(result);
                 Log.i("directionResults", "directionResults = " + apiResults);
+                return result;
+            } catch(MalformedURLException e) {
+                e.printStackTrace();
+                apiResults = e.toString();
+            } catch(IOException e) {
+                e.printStackTrace();
+                apiResults = e.toString();
+            }
+            return result;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            super.onPostExecute(result);
+
+            // do whatever with results
+
+
+        }
+
+
+    }
+
+    private class RoadServiceTask extends AsyncTask<MarkerController, Void, String> {
+
+//        String textResult;
+
+        @Override
+        protected String doInBackground(MarkerController... params) {
+            URL textUrl;
+            String result = "";
+            try {
+                textUrl = new URL(directionURL);
+                BufferedReader bufferReader = new BufferedReader(
+                        new InputStreamReader(textUrl.openStream()));
+                String stringBuffer;
+                String stringText = "";
+                while((stringBuffer = bufferReader.readLine()) != null) {
+                    stringText += stringBuffer;
+                }
+                bufferReader.close();
+                result = stringText;
+                params[0].setRoadJson(result);
+                Log.i("directionResults", "directionResults = " + apiResults);
+                return result;
             } catch(MalformedURLException e) {
                 e.printStackTrace();
                 apiResults = e.toString();
@@ -513,25 +582,106 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         @Override
-        protected void onPostExecute(Void result) {
+        protected void onPostExecute(String result) {
             super.onPostExecute(result);
+
+            // do whatever with results
+
         }
+
+
     }
 
 
-    private String getDirectionAPI(String Origin, String destination, String outputFormat, String travelMode, String transitMode, String departureTime, String trafficModel, String apiKey){
+    @Override
+    public void onDirectionFinderStart() {
+//        progressDialog = ProgressDialog.show(this, "Please wait.",
+//                "Finding direction..!", true);
+
+        if (originMarkers != null) {
+            for (Marker marker : originMarkers) {
+                marker.remove();
+            }
+        }
+
+        if (destinationMarkers != null) {
+            for (Marker marker : destinationMarkers) {
+                marker.remove();
+            }
+        }
+
+        if (polylinePaths != null) {
+            for (Polyline polyline:polylinePaths ) {
+                polyline.remove();
+            }
+        }
+    }
+
+    @Override
+    public void onDirectionFinderSuccess(List<Route> routes) {
+//        progressDialog.dismiss();
+        polylinePaths = new ArrayList<>();
+        originMarkers = new ArrayList<>();
+        destinationMarkers = new ArrayList<>();
+
+        for (Route route : routes) {
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(route.startLocation, 16));
+//            ((TextView) findViewById(R.id.tvDuration)).setText(route.duration.text);
+//            ((TextView) findViewById(R.id.tvDistance)).setText(route.distance.text);
+
+            originMarkers.add(mMap.addMarker(new MarkerOptions()
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue))
+                    .title(route.startAddress)
+                    .position(route.startLocation)));
+            destinationMarkers.add(mMap.addMarker(new MarkerOptions()
+                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue))
+                    .title(route.endAddress)
+                    .position(route.endLocation)));
+
+            PolylineOptions polylineOptions = new PolylineOptions().
+                    geodesic(true).
+                    color(Color.BLUE).
+                    width(10);
+
+            for (int i = 0; i < route.points.size(); i++)
+                polylineOptions.add(route.points.get(i));
+
+            polylinePaths.add(mMap.addPolyline(polylineOptions));
+        }
+    }
+
+    private void sendRequest() {
+        String origin = "etOrigin.getText().toString()";
+        String destination = "etDestination.getText().toString()";
+        if (origin.isEmpty()) {
+            Toast.makeText(this, "Please enter origin address!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (destination.isEmpty()) {
+            Toast.makeText(this, "Please enter destination address!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            new DirectionFinder(this, origin, destination).execute();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void pullDirectionAPIData(String Origin, String destination, String outputFormat, String travelMode, String transitMode, String departureTime, String trafficModel, MarkerController markerController){
         /*String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
                 + "&destination=" + destination + "&key=" + getString(R.string.google_maps_key)+ "&mode=" + travelMode + "&traffic_model=" + trafficModel
                 + "&transit_mode=" + transitMode + "&departure_time=" + departureTime;
         */
-
+        String apiKey = getString(R.string.google_maps_key);
         String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
                 + "&destination=" + destination +/* "&key=" + apiKey + */"&mode=" + travelMode + "&traffic_model=" + trafficModel
                 + /*"&transit_mode=" + transitMode +*/ "&departure_time=" + departureTime;
         directionURL = url;
         Log.i("getDirectionsAPI", " The url to call to Googles Dirrection API is: " + url);
 
-        new MyTask().execute();
+        new DirectionServiceTask().execute(markerController);
 
      /*   mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Places.GEO_DATA_API)
@@ -541,20 +691,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         MapsInitializer.initialize(this);
         mGoogleApiClient.connect();*/
 
-        return url;
+//        return url;
     }
 
-    private void getSnapToRoadsAPI(String Origin, String destination, String apiKey){
+    private void pullRoadAPIData(String Origin, String destination, MarkerController markerController ){
         /*String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
                 + "&destination=" + destination + "&key=" + getString(R.string.google_maps_key)+ "&mode=" + travelMode + "&traffic_model=" + trafficModel
                 + "&transit_mode=" + transitMode + "&departure_time=" + departureTime;
         */
-        String url =  "https://roads.googleapis.com/v1/snapToRoads?path=" + Origin + "|" + destination + "&key=" + apiKey;
+        String apiKey = getString(R.string.google_maps_key);
+;        String url =  "https://roads.googleapis.com/v1/snapToRoads?path=" + Origin + "|" + destination + "&key=" + apiKey;
         snapToRoadURL = url;
         Log.i("getDirectionsAPI", " The url to call to Googles Dirrection API is: " + url);
 //        String directionsJSON = getDirectionJSONFromURL(url);
 //        Log.i("getDirections", "directionsJSON = " + directionsJSON);
-        new MyTask().execute();
+        new RoadServiceTask().execute(markerController);
     }
 
     private void getNearestRoadLocation(LatLng latLng) {
@@ -676,7 +827,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String readRawFile(String fileName) {
         String rawFile = "";
-        int id = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
+        /*int id = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
         try {
             InputStream iS = getResources().openRawResource(id);
             BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
@@ -686,7 +837,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
         return rawFile;
     }
 
@@ -875,7 +1026,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         JSONObject stepJSONObject = (JSONObject) stepsJSONArray.get(i);
                         JSONObject polylineJSONObject = (JSONObject) stepJSONObject.get("polyline");
                         String points = (String) polylineJSONObject.get("points");
-                        polyLinesArray.add(points);
+//                        polyLinesArray.add(points);
 
                         JSONArray steps2JSONArray = (JSONArray) legJSONObject.get("steps");
                         for(int l = 0; l <steps2JSONArray.size(); l++) {
@@ -890,7 +1041,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 JSONObject overviewPolyline = (JSONObject) routeJsonObject.get("overview_polyline");
                 String points = (String) overviewPolyline.get("points");
                 polyLines = points;
-//                polyLinesArray.add(polyLines);
+                polyLinesArray.add(polyLines);
             }
         }catch (Exception e){
             e.printStackTrace();

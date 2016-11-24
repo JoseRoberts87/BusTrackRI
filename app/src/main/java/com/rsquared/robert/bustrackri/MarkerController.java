@@ -8,6 +8,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,6 +32,8 @@ public class MarkerController {
     private String startTime;
     private float animationDuration;
     private String directionJson;
+    private String roadJson;
+    private List<String> polyLinesArray;
 
     public MarkerController(Marker marker, String markerId, LatLng latLng, long timeStamp, MarkerOptions markerOptions, MarkerAnimation markerAnimation, float animationDuration, boolean isRealTime){
         this.marker = marker;
@@ -202,5 +205,13 @@ public class MarkerController {
 
     public void setDirectionJson(String directionJson) {
         this.directionJson = directionJson;
+    }
+
+    public String getRoadJson() {
+        return roadJson;
+    }
+
+    public void setRoadJson(String roadJson) {
+        this.roadJson = roadJson;
     }
 }

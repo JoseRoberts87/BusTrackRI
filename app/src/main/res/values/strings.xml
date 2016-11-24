@@ -10,7 +10,7 @@
     <string name="url_ripta">http://www.ripta.com/</string>
     <string name="ignore_url_map">http://m.ripta.com/mobile/map.php?id=1</string>
     <string name="ignore_url_schedule">http://m.ripta.com/schedules---maps-1</string>
-    <string name="api_url">http://realtime.ripta.com:81/api/vehiclepositions?format=json</string>
+    <string name="real_time_url">http://realtime.ripta.com:81/api/vehiclepositions?format=json</string>
 
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
