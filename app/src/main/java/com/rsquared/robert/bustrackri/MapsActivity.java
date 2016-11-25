@@ -168,6 +168,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String readRawFile(String fileName) {
         String rawFile = "";
+
+        try {
+            InputStream iS = getResources().openRawResource(R.raw.route_3);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
+            String stringReader;
+            String line = "";
+            while((stringReader = reader.readLine()) != null){
+                line += stringReader;
+            }
+            iS.close();
+            return line;
+        }catch (Exception e){
+            e.printStackTrace();
+        }
         /*int id = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
         try {
             InputStream iS = getResources().openRawResource(id);
@@ -179,7 +193,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }catch (IOException e) {
             e.printStackTrace();
         }*/
-        return rawFile;
+        return null;
     }
 
 
@@ -326,8 +340,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 jsonFile = textResult;
             }
             String jsonField = getJsonField("route_id", route_id);
+
+            String rawFile = "";
             if (!jsonFile.contains(jsonField)) {
-                jsonFile = readRawFile("route_files" + route_id);
+                rawFile = readRawFile("route_files" + route_id);
+                jsonFile = createJson(rawFile);
+
             }
 
             if(!jsonFile.isEmpty()) {
@@ -468,6 +486,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             e.printStackTrace();
         }
         return busInfoListMap;
+    }
+
+    private String createJson(String rawFile) {
+        String json = "";
+
+
+        return json;
     }
 
     @Override
