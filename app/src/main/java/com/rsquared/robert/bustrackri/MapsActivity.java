@@ -79,7 +79,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private List<String> busIdList;
     private List<LatLng> mDecodedLatLng;
     private Set<MarkerController> markerControllerSet;
-    private String realTimeURL = "";
     private Handler handler = new Handler();
     private String textResult = "";
     private ScheduledExecutorService scheduledExecutorService;
@@ -94,6 +93,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
         // Initialize variables and data calls and service calls
         init();
 
@@ -108,7 +108,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void init() {
         // real time api url from ripta
-        realTimeURL = getString(R.string.real_time_url);
         route_id = getUrlNumber(getFormedUrl());
         markerControllerSet = new HashSet<>();
         manageRouteData();
@@ -149,7 +148,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void pullRealTimeData(){
         URL textUrl;
         try {
-            textUrl = new URL(realTimeURL);
+            textUrl = new URL(getString(R.string.real_time_url));
             InputStreamReader inputStream = new InputStreamReader(textUrl.openStream());
             BufferedReader bufferReader = new BufferedReader(inputStream);
             String stringBuffer;
@@ -257,22 +256,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return false;
     }
 
-    private void startThreads() {
-
-
-    }
-
-
-    private void destroyThreads() {
-        if(handler != null){
-            handler.removeCallbacks(runnable);
-        }
-        if(scheduledExecutorService != null){
-            scheduledExecutorService.shutdownNow();
-        }
-        Log.i("destroyThreads", "Handler calls removed");
-    }
-
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -335,28 +318,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private Map<String, List<String>> setBusInfoListMap() {
-        List<String> busInfoList;
-        JSONParser jsonParser = new JSONParser();
-        String jsonFile = "";
-        if(!textResult.isEmpty()){
-            jsonFile = textResult;
-        }
-        String jsonField = getJsonField("route_id", route_id);
-        if(!jsonFile.contains(jsonField)) {
-            jsonFile = readRawFile("route_files" + route_id);
-        }
         try {
-            JSONObject obj =  (JSONObject) jsonParser.parse(jsonFile);
+            List<String> busInfoList;
+            JSONParser jsonParser = new JSONParser();
+            String jsonFile = "";
+            if (!textResult.isEmpty()) {
+                jsonFile = textResult;
+            }
+            String jsonField = getJsonField("route_id", route_id);
+            if (!jsonFile.contains(jsonField)) {
+                jsonFile = readRawFile("route_files" + route_id);
+            }
+            JSONObject obj = (JSONObject) jsonParser.parse(jsonFile);
             JSONArray jsonArray = (JSONArray) obj.get("entity");
             busInfoListMap = new HashMap<>();
             busIdList = new ArrayList<>();
-            for(int i = 0; i < jsonArray.size(); i++){
+            for (int i = 0; i < jsonArray.size(); i++) {
                 busInfoList = new ArrayList<>();
                 JSONObject entityJsonObject = (JSONObject) jsonArray.get(i);
                 JSONObject vehicleJsonObject = (JSONObject) entityJsonObject.get("vehicle");
                 JSONObject tripJsonObject = (JSONObject) vehicleJsonObject.get("trip");
                 String routeIdJsonObject = (String) tripJsonObject.get("route_id");
-                if(routeIdJsonObject.equalsIgnoreCase(route_id)) {
+                if (routeIdJsonObject.equalsIgnoreCase(route_id)) {
                     JSONObject positionJSONObject = (JSONObject) vehicleJsonObject.get("position");
                     JSONObject vehicleVehicleObject = (JSONObject) vehicleJsonObject.get("vehicle");
                     if (!busInfoList.contains(vehicleVehicleObject.get("label"))) {
@@ -395,28 +378,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 long animationDuration = newTimeStamp - oldTimeStamp;
 
 //                                float animationDuration1000 = animationDuration/1000;
-                                String origin = markerController.getLatLng().latitude + ","+markerController.getLatLng().longitude;
+                                String origin = markerController.getLatLng().latitude + "," + markerController.getLatLng().longitude;
                                 String destination = latLng.latitude + "," + latLng.longitude;
 
-                                // getting polylines from the direction services and adding the lines to the screen
-                                pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
-                                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST,  markerController);
-                                List<String> polylineArray = getDirectionJSONPolyLine(markerController);
-
-                                pullRoadAPIData(origin, destination, markerController);
-//                                for(String polyline: polylinesArray){
-                                PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
-                                for(String polyline: polylineArray) {
-                                    List<LatLng> latLngList = PolyUtil.decode(polyline);
-                                    Log.i("polylines", "polylines = " + polyline);
-
-                                    for (LatLng latLngPolyline : latLngList) {
-                                        polylineOptions.add(latLngPolyline);
-                                        Log.i("polylines", "latLngPolyline = " + latLngPolyline + " Added!!! ");
-                                    }
-                                }
-//                                    polylineOptions.addAll(latLngList);
-                                mMap.addPolyline(polylineOptions);
 
                                 // Polyline animation
 //                                }
@@ -431,8 +395,43 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 markerController.setBearing(bearing);
                                 markerController.setTripId(tripId);
                                 markerController.setStartTime(startTime);
+
+//                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
+
+                                // getting polylines from the direction services and adding the lines to the screen
+                                pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
+                                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST, markerController);
+                                List<String> polylineArray = getDirectionJSONPolyLine(markerController);
+
+                                pullRoadAPIData(origin, destination, markerController);
+//                                for(String polyline: polylinesArray){
+                                PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
+                                List<LatLng> latLngoAnimate = new ArrayList<>();
+                                for (String polyline : polylineArray) {
+                                    List<LatLng> latLngList = PolyUtil.decode(polyline);
+                                    latLngoAnimate = PolyUtil.decode(polyline);
+                                    Log.i("polylines", "polylines = " + polyline);
+
+                                    for (LatLng latLngPolyline : latLngList) {
+                                        polylineOptions.add(latLngPolyline);
+                                        Log.i("polylines", "latLngPolyline = " + latLngPolyline + " Added!!! ");
+                                    }
+                                }
+//                                animationDuration = animationDuration/latLngoAnimate.size();
+
                                 markerController.setAnimationDuration(animationDuration);
+
+
+//                                for(LatLng latLngAn: latLngoAnimate){
+                                markerController.setLatLngArray(latLngoAnimate);
                                 markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
+
+//                                }
+//                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
+
+
+//                                    polylineOptions.addAll(latLngList);
+                                mMap.addPolyline(polylineOptions);
 
 
                                 Log.i("MarkerAnimation", "Bus Label: " + markerController.getMarkerId() + ", was animated from laLng = " + marker.getPosition() + ", to latLng = " + latLng);
@@ -489,6 +488,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 bufferReader.close();
                 result = stringText;
                 params[0].setDirectionJson(result);
+                apiResults = result;
                 Log.i("directionResults", "directionResults = " + apiResults);
                 return result;
             } catch(MalformedURLException e) {
@@ -638,10 +638,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 + "&destination=" + destination + "&key=" + getString(R.string.google_maps_key)+ "&mode=" + travelMode + "&traffic_model=" + trafficModel
                 + "&transit_mode=" + transitMode + "&departure_time=" + departureTime;
         */
+/*
+        String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
+                + "&destination=" + destination +*//* "&key=" + apiKey + *//*"&mode=" + travelMode + "&traffic_model=" + trafficModel
+                + *//*"&transit_mode=" + transitMode +*//* "&departure_time=" + departureTime;*/
+
         String apiKey = getString(R.string.google_maps_key);
         String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
-                + "&destination=" + destination +/* "&key=" + apiKey + */"&mode=" + travelMode + "&traffic_model=" + trafficModel
-                + /*"&transit_mode=" + transitMode +*/ "&departure_time=" + departureTime;
+                + "&destination=" + destination + "&departure_time=" + departureTime;
         directionURL = url;
         Log.i("getDirectionsAPI", " The url to call to Googles Dirrection API is: " + url);
 
@@ -666,10 +670,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String apiKey = getString(R.string.google_maps_key);
 ;        String url =  "https://roads.googleapis.com/v1/snapToRoads?path=" + Origin + "|" + destination + "&key=" + apiKey;
         snapToRoadURL = url;
-        Log.i("getDirectionsAPI", " The url to call to Googles Dirrection API is: " + url);
+        Log.i("getRoadAPI", " The url to call to Googles Dirrection API is: " + url);
 //        String directionsJSON = getDirectionJSONFromURL(url);
 //        Log.i("getDirections", "directionsJSON = " + directionsJSON);
-        new RoadServiceTask().execute(markerController);
+//        new RoadServiceTask().execute(markerController);
     }
 
     private void getNearestRoadLocation(LatLng latLng) {
@@ -777,7 +781,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String readAPIFile() {
         String apiFile = "";
-        BufferedReader bufferedReader = getBufferReaderFromUrl(realTimeURL);
+        BufferedReader bufferedReader = getBufferReaderFromUrl(getString(R.string.real_time_url));
         String inputLine;
         try {
             while ((inputLine = bufferedReader.readLine()) != null) {
@@ -940,19 +944,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // do nothing...
         }
 
-        String directionJson = markerController.getDirectionJson();
-        if(directionJson == null){
-            markerController.setDirectionJson(apiResults);
-        } else {
 
-            while (markerController.getDirectionJson().equals(apiResults)) {
-                markerController.setDirectionJson(apiResults);
-            }
+        if( markerController.getDirectionJson() == null){
+            markerController.setDirectionJson(apiResults);
         }
+        String directionJson = markerController.getDirectionJson();
 
         try {
             JSONParser jsonParser = new JSONParser();
-            JSONObject directionJSONObject = (JSONObject) jsonParser.parse(apiResults);
+            JSONObject directionJSONObject = (JSONObject) jsonParser.parse(directionJson);
 
             JSONArray routeJsonArray = (JSONArray) directionJSONObject.get("routes");
             for(int i = 0 ; i < routeJsonArray.size(); i++){
@@ -1174,5 +1174,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else if(!hasFocus){
             destroyThreads();
         }
+    }
+
+    private void startThreads() {
+
+
+    }
+
+
+    private void destroyThreads() {
+        if(handler != null){
+            handler.removeCallbacks(runnable);
+        }
+        if(scheduledExecutorService != null){
+            scheduledExecutorService.shutdownNow();
+        }
+        Log.i("destroyThreads", "Handler calls removed");
     }
 }

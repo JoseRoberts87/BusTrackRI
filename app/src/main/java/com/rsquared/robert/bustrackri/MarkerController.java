@@ -33,7 +33,7 @@ public class MarkerController {
     private float animationDuration;
     private String directionJson;
     private String roadJson;
-    private List<String> polyLinesArray;
+    private List<LatLng> latLngArray;
 
     public MarkerController(Marker marker, String markerId, LatLng latLng, long timeStamp, MarkerOptions markerOptions, MarkerAnimation markerAnimation, float animationDuration, boolean isRealTime){
         this.marker = marker;
@@ -213,5 +213,13 @@ public class MarkerController {
 
     public void setRoadJson(String roadJson) {
         this.roadJson = roadJson;
+    }
+
+    public List<LatLng> getLatLngArray() {
+        return latLngArray;
+    }
+
+    public void setLatLngArray(List<LatLng> latLngArray) {
+        this.latLngArray = latLngArray;
     }
 }
