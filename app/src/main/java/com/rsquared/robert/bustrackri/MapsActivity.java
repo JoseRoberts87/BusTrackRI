@@ -329,120 +329,137 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (!jsonFile.contains(jsonField)) {
                 jsonFile = readRawFile("route_files" + route_id);
             }
-            JSONObject obj = (JSONObject) jsonParser.parse(jsonFile);
-            JSONArray jsonArray = (JSONArray) obj.get("entity");
-            busInfoListMap = new HashMap<>();
-            busIdList = new ArrayList<>();
-            for (int i = 0; i < jsonArray.size(); i++) {
-                busInfoList = new ArrayList<>();
-                JSONObject entityJsonObject = (JSONObject) jsonArray.get(i);
-                JSONObject vehicleJsonObject = (JSONObject) entityJsonObject.get("vehicle");
-                JSONObject tripJsonObject = (JSONObject) vehicleJsonObject.get("trip");
-                String routeIdJsonObject = (String) tripJsonObject.get("route_id");
-                if (routeIdJsonObject.equalsIgnoreCase(route_id)) {
-                    JSONObject positionJSONObject = (JSONObject) vehicleJsonObject.get("position");
-                    JSONObject vehicleVehicleObject = (JSONObject) vehicleJsonObject.get("vehicle");
-                    if (!busInfoList.contains(vehicleVehicleObject.get("label"))) {
-                        double latitude = (double) positionJSONObject.get("latitude");
-                        double longitude = (double) positionJSONObject.get("longitude");
-                        long timestamp = (long) vehicleJsonObject.get("timestamp");
-                        String stopId = (String) vehicleJsonObject.get("stop_id");
-                        String startTime = (String) tripJsonObject.get("start_time");
-                        String tripId = (String) tripJsonObject.get("trip_id");
-                        double bearing = (double) positionJSONObject.get("bearing");
-                        String label = (String) vehicleVehicleObject.get("label");
-                        busInfoList.add(String.valueOf(latitude));
-                        busInfoList.add(String.valueOf(longitude));
-                        busInfoList.add(String.valueOf(timestamp));
-                        busInfoList.add(String.valueOf(stopId));
-                        busInfoList.add(String.valueOf(startTime));
-                        busInfoList.add(String.valueOf(tripId));
-                        busInfoList.add(String.valueOf(bearing));
-                        busInfoList.add(String.valueOf(label));
-                        busIdList.add(label);
-                        busInfoListMap.put(label, busInfoList);
-                        LatLng latLng = new LatLng(latitude, longitude);
-                        Location newLocation = new Location(String.valueOf(latLng));
-                        MarkerOptions markerOptions;
-                        Marker marker;
-                        MarkerController markerController;
-                        MarkerAnimation markerAnimation;
-                        if (doesMarkerExist(label)) {
-                            marker = getMarkerById(label);
-                            markerController = getMarkerControllerById(label);
 
-                            if (hasMarkerLatLngChanged(markerController, latLng)) {
-                                long oldTimeStamp = markerController.getTimeStamp();
-                                long newTimeStamp = System.currentTimeMillis();
-                                markerController.setTimeStamp(newTimeStamp);
-                                long animationDuration = newTimeStamp - oldTimeStamp;
+            if(!jsonFile.isEmpty()) {
+                JSONObject obj = (JSONObject) jsonParser.parse(jsonFile);
+                JSONArray jsonArray = (JSONArray) obj.get("entity");
+                busInfoListMap = new HashMap<>();
+                busIdList = new ArrayList<>();
+                for (int i = 0; i < jsonArray.size(); i++) {
+                    busInfoList = new ArrayList<>();
+                    JSONObject entityJsonObject = (JSONObject) jsonArray.get(i);
+                    JSONObject vehicleJsonObject = (JSONObject) entityJsonObject.get("vehicle");
+                    JSONObject tripJsonObject = (JSONObject) vehicleJsonObject.get("trip");
+                    String routeIdJsonObject = (String) tripJsonObject.get("route_id");
+                    if (routeIdJsonObject.equalsIgnoreCase(route_id)) {
+                        JSONObject positionJSONObject = (JSONObject) vehicleJsonObject.get("position");
+                        JSONObject vehicleVehicleObject = (JSONObject) vehicleJsonObject.get("vehicle");
+                        if (!busInfoList.contains(vehicleVehicleObject.get("label"))) {
+                            double latitude = (double) positionJSONObject.get("latitude");
+                            double longitude = (double) positionJSONObject.get("longitude");
+                            long timestamp = (long) vehicleJsonObject.get("timestamp");
+                            String stopId = (String) vehicleJsonObject.get("stop_id");
+                            String startTime = (String) tripJsonObject.get("start_time");
+                            String tripId = (String) tripJsonObject.get("trip_id");
+                            double bearing = (double) positionJSONObject.get("bearing");
+                            String label = (String) vehicleVehicleObject.get("label");
+                            busInfoList.add(String.valueOf(latitude));
+                            busInfoList.add(String.valueOf(longitude));
+                            busInfoList.add(String.valueOf(timestamp));
+                            busInfoList.add(String.valueOf(stopId));
+                            busInfoList.add(String.valueOf(startTime));
+                            busInfoList.add(String.valueOf(tripId));
+                            busInfoList.add(String.valueOf(bearing));
+                            busInfoList.add(String.valueOf(label));
+                            busIdList.add(label);
+                            busInfoListMap.put(label, busInfoList);
+                            final LatLng latLng = new LatLng(latitude, longitude);
+                            Location newLocation = new Location(String.valueOf(latLng));
+                            MarkerOptions markerOptions;
+                            final Marker marker;
+                            final MarkerController markerController;
+                            final MarkerAnimation markerAnimation;
+                            if (doesMarkerExist(label)) {
+                                marker = getMarkerById(label);
+                                markerController = getMarkerControllerById(label);
+
+                                if (hasMarkerLatLngChanged(markerController, latLng)) {
+                                    long oldTimeStamp = markerController.getTimeStamp();
+                                    long newTimeStamp = System.currentTimeMillis();
+                                    markerController.setTimeStamp(newTimeStamp);
+                                    long animationDuration = newTimeStamp - oldTimeStamp;
 
 //                                float animationDuration1000 = animationDuration/1000;
-                                String origin = markerController.getLatLng().latitude + "," + markerController.getLatLng().longitude;
-                                String destination = latLng.latitude + "," + latLng.longitude;
+                                    String origin = markerController.getLatLng().latitude + "," + markerController.getLatLng().longitude;
+                                    String destination = latLng.latitude + "," + latLng.longitude;
 
 
-                                // Polyline animation
+                                    // Polyline animation
 //                                }
 //                                Log.i("polylines" , "polylines = " + polylinesArray);
 //                                getNearestRoadLocation(latLng);
-                                markerAnimation = getMarkerAnimationById(label);
-                                markerController.setLatLng(latLng);
-                                markerController.setLocation(newLocation);
-                                markerController.setRealTime(true);
+                                    markerAnimation = getMarkerAnimationById(label);
+                                    markerController.setLatLng(latLng);
+                                    markerController.setLocation(newLocation);
+                                    markerController.setRealTime(true);
 //                                markerController.setTimeStamp(timestamp);
-                                markerController.setStopId(stopId);
-                                markerController.setBearing(bearing);
-                                markerController.setTripId(tripId);
-                                markerController.setStartTime(startTime);
+                                    markerController.setStopId(stopId);
+                                    markerController.setBearing(bearing);
+                                    markerController.setTripId(tripId);
+                                    markerController.setStartTime(startTime);
 
 //                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
 
-                                // getting polylines from the direction services and adding the lines to the screen
-                                pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
-                                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST, markerController);
-                                List<String> polylineArray = getDirectionJSONPolyLine(markerController);
+                                    // getting polylines from the direction services and adding the lines to the screen
+                                    pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
+                                            MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST, markerController);
+                                    List<String> polylineArray = getDirectionJSONPolyLine(markerController);
 
-                                pullRoadAPIData(origin, destination, markerController);
+                                    pullRoadAPIData(origin, destination, markerController);
 //                                for(String polyline: polylinesArray){
-                                PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
-                                List<LatLng> latLngoAnimate = new ArrayList<>();
-                                for (String polyline : polylineArray) {
-                                    List<LatLng> latLngList = PolyUtil.decode(polyline);
-                                    latLngoAnimate = PolyUtil.decode(polyline);
-                                    Log.i("polylines", "polylines = " + polyline);
+                                    PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
+                                    List<LatLng> latLngoAnimate = new ArrayList<>();
+                                    for (String polyline : polylineArray) {
+                                        List<LatLng> latLngList = PolyUtil.decode(polyline);
+                                        latLngoAnimate = PolyUtil.decode(polyline);
+                                        Log.i("polylines", "polylines = " + polyline);
 
-                                    for (LatLng latLngPolyline : latLngList) {
-                                        polylineOptions.add(latLngPolyline);
-                                        Log.i("polylines", "latLngPolyline = " + latLngPolyline + " Added!!! ");
+                                        for (LatLng latLngPolyline : latLngList) {
+                                            polylineOptions.add(latLngPolyline);
+                                            Log.i("polylines", "latLngPolyline = " + latLngPolyline + " Added!!! ");
+                                        }
                                     }
-                                }
-//                                animationDuration = animationDuration/latLngoAnimate.size();
+                                    animationDuration = animationDuration / latLngoAnimate.size();
+                                    final float postDuration = animationDuration;
 
-                                markerController.setAnimationDuration(animationDuration);
-
+                                    markerController.setAnimationDuration(animationDuration);
 
 //                                for(LatLng latLngAn: latLngoAnimate){
-                                markerController.setLatLngArray(latLngoAnimate);
-                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
+                                    markerController.setLatLngArray(latLngoAnimate);
+                                    markerController.setAnimationCounter(0);
+                                    final Handler handler = new Handler();
+                                    handler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            int animationCounter = markerController.getAnimationCounter();
+                                            markerAnimation.animateMarkerToGB(marker, markerController.getLatLngArray().get(animationCounter), new LatLngInterpolator.Linear(), markerController);
+                                            if (markerController.getAnimationCounter() < markerController.getLatLngArray().size()) {
+                                                handler.postDelayed(this, (long) postDuration + 50);
+                                                if (markerController.getAnimationCounter() < markerController.getLatLngArray().size() - 1) {
+                                                    markerController.setAnimationCounter(markerController.getAnimationCounter() + 1);
+                                                }
+                                            }
+                                        }
+                                    });
 
 //                                }
 //                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
 
 
 //                                    polylineOptions.addAll(latLngList);
-                                mMap.addPolyline(polylineOptions);
+                                    mMap.addPolyline(polylineOptions);
 
 
-                                Log.i("MarkerAnimation", "Bus Label: " + markerController.getMarkerId() + ", was animated from laLng = " + marker.getPosition() + ", to latLng = " + latLng);
-                            }
-                        } else {
-                            markerOptions = createBusMarkerOptionDefaultRealTime(latLng, label);
-                            marker = mMap.addMarker(markerOptions);
-                            markerAnimation = new MarkerAnimation();
-                            markerController = new MarkerController(marker, label, latLng, System.currentTimeMillis(), markerOptions, markerAnimation, System.currentTimeMillis(), true);
-                            markerControllerSet.add(markerController);
+                                    Log.i("MarkerAnimation", "Bus Label: " + markerController.getMarkerId() + ", was animated from laLng = " + marker.getPosition() + ", to latLng = " + latLng);
+                                }
+                            } else {
+                                markerOptions = createBusMarkerOptionDefaultRealTime(latLng, label);
+                                marker = mMap.addMarker(markerOptions);
+                                markerAnimation = new MarkerAnimation();
+                                markerController = new MarkerController(marker, label, latLng, System.currentTimeMillis(), markerOptions, markerAnimation, System.currentTimeMillis(), true);
+                                markerControllerSet.add(markerController);
 //                            markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
+                            }
                         }
                     }
                 }

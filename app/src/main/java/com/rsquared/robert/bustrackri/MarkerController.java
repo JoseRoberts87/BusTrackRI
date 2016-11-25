@@ -34,6 +34,7 @@ public class MarkerController {
     private String directionJson;
     private String roadJson;
     private List<LatLng> latLngArray;
+    private int animationCounter;
 
     public MarkerController(Marker marker, String markerId, LatLng latLng, long timeStamp, MarkerOptions markerOptions, MarkerAnimation markerAnimation, float animationDuration, boolean isRealTime){
         this.marker = marker;
@@ -221,5 +222,13 @@ public class MarkerController {
 
     public void setLatLngArray(List<LatLng> latLngArray) {
         this.latLngArray = latLngArray;
+    }
+
+    public int getAnimationCounter() {
+        return animationCounter;
+    }
+
+    public void setAnimationCounter(int animationCounter) {
+        this.animationCounter = animationCounter;
     }
 }

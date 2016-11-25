@@ -29,6 +29,7 @@ public class MarkerAnimation {
         final long start = SystemClock.uptimeMillis();
         final Interpolator interpolator = new AccelerateDecelerateInterpolator();
         final float durationInMs = markerController.getAnimationDuration();
+        final long postDuration = (long) (durationInMs/187.5);
 
         handler.post(new Runnable() {
             long elapsed;
@@ -47,7 +48,7 @@ public class MarkerAnimation {
                 // Repeat till progress is complete.
                 if (t < 1) {
                     // Post again 16ms later.
-                    handler.postDelayed(this, 128);
+                    handler.postDelayed(this, postDuration);
                 }
             }
         });
