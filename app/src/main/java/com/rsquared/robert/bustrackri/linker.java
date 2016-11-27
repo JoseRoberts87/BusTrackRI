@@ -8,6 +8,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,7 +23,7 @@ public class Linker {
 		System.out.println("Starting Linker...");
 		long startMain = System.currentTimeMillis();
 
-		String folderPath = "./res/raw/google_transit";
+		String folderPath = "./google_transit";
 		List<String> filePathList = getFilePathList(folderPath);
 		Map<String, List<String>> fileDataMap = readFiles(filePathList);
 		Map<String, String[]> headerMap = getHeaderMap(fileDataMap);
@@ -41,7 +43,7 @@ public class Linker {
 				routeIdIndex = i;
 			}
 		}
-		int routeIdToRetrieve = 0;
+		int routeIdToRetrieve = 3;
 
 		// get trip_id index in stop_times.txt
 
@@ -73,7 +75,7 @@ public class Linker {
 
 			List<Integer> tripIdsInRouteList = getIdLIst(tripIdIndex, routeMapByIdInTrips);
 			Set<Integer> tripIdsInRouteSet = new HashSet<Integer>(tripIdsInRouteList);
-			List<Integer> tripIdsInRouteSetList = new ArrayList<Integer>(tripIdsInRouteSet);
+			final List<Integer> tripIdsInRouteSetList = new ArrayList<Integer>(tripIdsInRouteSet);
 
 			// get trip_id index in stop_times.txt
 
@@ -120,16 +122,44 @@ public class Linker {
 			stopIdMapByIdInStops = getBodyForId(stopIdIndexInStops, stopIdsInStopTimesSetList, stopsBodyMaps);
 
 			Map<Integer, String[]> stopMapByIdInStopTimes = appendStopsToStopTimes(stopIdMapByIdInStops, tripIdMapByIdInStopTimes);
-
-//			writeFile("./doc/stopIdMapByIdInStops.txt", stopIdMapByIdInStops);
-//			writeFile("./doc/tripIdMapByIdInStopTimes.txt", tripIdMapByIdInStopTimes);
 			
-			writeFile("./res/raw/docs/data_route_" + String.valueOf(routeIdToRetrieve) + ".txt", stopMapByIdInStopTimes);
+			Map<Integer, String[]> stopMapByIdInStopTimesAndTrips = appendStopsToStopTimes(routeMapByIdInTrips, stopMapByIdInStopTimes);
 
-//			writeFile("./doc/routeIdInRoutesList" + String.valueOf(routeIdToRetrieve) + ".txt", routeIdInRoutesList);
 
+			// writeFile("./doc/stopIdMapByIdInStops.txt",
+			// stopIdMapByIdInStops);
+			// writeFile("./doc/tripIdMapByIdInStopTimes.txt",
+			// tripIdMapByIdInStopTimes);
+
+			List<String[]> listOfStringArray = new ArrayList<String[]>();
+
+			for (Entry<Integer, String[]> stopMapByIdInStopTime : stopMapByIdInStopTimesAndTrips.entrySet()) {
+
+				listOfStringArray.add(stopMapByIdInStopTime.getValue());
+
+			}
+			
+			Collections.sort(listOfStringArray, new Comparator<String[]>() {
+
+				public int compare(String[] strings, String[] otherString) {
+
+					int compared1 = (otherString[0].compareTo(strings[0]));
+					return compared1;
+				}
+
+			});
+
+			List<String[]> sortedListOfStringArray = superSort(listOfStringArray, tripIdsInRouteSetList, 0, 1);
+
+			String[] headerStopMapByIdInStopTimes = addArrays(stopTimesHeaderArray, stopsHeaderArray);
+
+			writeFileList("./results/route_" + String.valueOf(routeIdToRetrieve) + ".txt", headerStopMapByIdInStopTimes, sortedListOfStringArray);
+
+			// writeFile("./doc/routeIdInRoutesList" +
+			// String.valueOf(routeIdToRetrieve) + ".txt", routeIdInRoutesList);
+
+			// }
 		}
-		// }
 
 		// String[] overlappingHeaderFields = getOverlappingFields(headerMap);
 
@@ -140,6 +170,63 @@ public class Linker {
 		System.out.println("totalMain: " + totalMain);
 		System.out.println("totalMain in milli Seconds: " + totalMain);
 
+	}
+
+	private static List<String[]> superSort(List<String[]> listOfStringArrayList, final List<Integer> tripIdsInRouteSetList, int i, int j) {
+
+		List<String[]> sortedListOfStringArray = new ArrayList<String[]>();
+
+		for (Integer tripId : tripIdsInRouteSetList) {
+
+			List<String[]> listOfStringArrayListToSort = new ArrayList<String[]>();
+			
+			String tripIdString = String.valueOf(tripId).trim();
+
+			for (String[] listOfStringArray : listOfStringArrayList) {
+
+				if (listOfStringArray[0].trim().equalsIgnoreCase(tripIdString)) {
+
+					listOfStringArrayListToSort.add(listOfStringArray);
+
+				}
+
+			}
+			
+			
+			Collections.sort(listOfStringArrayListToSort, new Comparator<String[]>() {
+
+				public int compare(String[] strings, String[] otherString) {
+
+					int compared1 = (strings[1].compareTo(otherString[1]));
+					return compared1;
+				}
+
+			});
+			
+			sortedListOfStringArray.addAll(listOfStringArrayListToSort);
+		}
+
+/*		Collections.sort(listOfStringArrayList, new Comparator<String[]>() {
+
+			@Override
+			public int compare(String[] strings, String[] otherString) {
+				for (int i = 0; i < tripIdsInRouteSetList.size(); i++) {
+					final String tripId = String.valueOf(tripIdsInRouteSetList.get(i));
+
+					if (strings[0].equalsIgnoreCase(tripId)) {
+
+						int compared = (String.valueOf(strings[1]).compareTo(String.valueOf(otherString[1])));
+						return compared;
+					}
+				}
+
+				return 0;
+			}
+
+		});*/
+
+		// TODO Auto-generated method stub
+		return sortedListOfStringArray;
 	}
 
 	private static Map<Integer, String[]> appendStopsToStopTimes(Map<Integer, String[]> stopIdMapByIdInStops, Map<Integer, String[]> tripIdMapByIdInStopTimes) {
@@ -359,6 +446,26 @@ public class Linker {
 		return fileDataMap;
 	}
 
+	private static void writeFile(String filePath, String[] headersArray, Map<Integer, String[]> stopIdMapByIdInStops) {
+
+		try {
+			BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(filePath));
+
+			for (Entry<Integer, String[]> stopIdMapByIdInStop : stopIdMapByIdInStops.entrySet()) {
+				String[] stopIdMapByIdInStopArray = stopIdMapByIdInStop.getValue();
+				for (int i = 0; i < stopIdMapByIdInStopArray.length; i++) {
+					bufferedWriter.write(stopIdMapByIdInStopArray[i] + ", ");
+				}
+				bufferedWriter.write("\n");
+			}
+			bufferedWriter.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
 	private static void writeFile(String filePath, Map<Integer, String[]> stopIdMapByIdInStops) {
 
 		try {
@@ -386,6 +493,28 @@ public class Linker {
 				bufferedWriter.write(routeIdInRoutesList.get(i) + ", ");
 			}
 			bufferedWriter.write("\n");
+			bufferedWriter.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	private static void writeFileList(String filePath, String[] headers, List<String[]> routeIdInRoutesList) {
+		try {
+			BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(filePath));
+			for (int i = 0; i < headers.length; i++) {
+				bufferedWriter.write(headers[i] + ", ");
+			}
+			bufferedWriter.write("\n");
+			for (int i = 0; i < routeIdInRoutesList.size(); i++) {
+				for (int j = 0; j < routeIdInRoutesList.get(i).length; j++) {
+					bufferedWriter.write(routeIdInRoutesList.get(i)[j] + ", ");
+
+				}
+				bufferedWriter.write("\n");
+			}
 			bufferedWriter.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

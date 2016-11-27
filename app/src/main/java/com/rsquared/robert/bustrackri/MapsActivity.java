@@ -48,7 +48,11 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -89,6 +93,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String snapToRoadResults = "";
     protected GoogleApiClient mGoogleApiClient;;
 
+    final private Context context = this;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -97,11 +103,39 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Initialize variables and data calls and service calls
         init();
 
+        // test stuff and crazinessssss
+        String jsonFile = testTime("");
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mapFragment.getMapAsync(this);
+    }
+
+    private String testTime(String s) {
+        long currentTimeMillis = System.currentTimeMillis();
+
+        String timeFormatted = getFormattedTime(currentTimeMillis);
+
+        String roundedUpTime = roundUpTime(timeFormatted);
+        readRawFile("route_" + route_id);
+        return roundedUpTime;
+    }
+
+    private String getFormattedTime(long currentTimeMillis){
+        currentTimeMillis -= 40000000;
+        Date date = new Date(currentTimeMillis);
+        DateFormat formatter = new SimpleDateFormat("HH:mm:ss");
+        String timeFormatted = formatter.format(date);
+        return timeFormatted;
+    }
+
+    private long getTimeStamp(String dateString){
+        Date date = new Date(dateString);
+        long time = date.getTime();
+        Timestamp timestamp = new Timestamp(time);
+        return timestamp.getTime();
     }
 
 
@@ -168,21 +202,54 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String readRawFile(String fileName) {
         String rawFile = "";
-
+        int minutesToGet = 25;
+        int id = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
         try {
-            InputStream iS = getResources().openRawResource(R.raw.route_3);
+            InputStream iS = getResources().openRawResource(id);
             BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
-            String stringReader;
+            String lineReader;
             String line = "";
-            while((stringReader = reader.readLine()) != null){
-                line += stringReader;
+            while((lineReader = reader.readLine()) != null){
+
+                // two ways to do this
+                if(false){
+                    // read everything or a chunk of it and set start time in arrays
+
+
+                }else if(lineReader.contains(":")){
+                    // read everything and check if it it near to current time
+                    long surrentTimeMillis = System.currentTimeMillis();
+
+                    String currentTime = getFormattedTime(System.currentTimeMillis());
+                    String currentHourMin = currentTime.substring(0, currentTime.lastIndexOf(":"));
+                    String dataHourMinute = getDataHourMinute(lineReader);
+
+                    if(dataHourMinute.equalsIgnoreCase(currentHourMin)){
+                        String tripId = getTripId(lineReader);
+                        String oldTripId = tripId;
+                        line += lineReader + "\n";
+                        for(int i = 0; i < minutesToGet; i++ ) {
+                            if((lineReader = reader.readLine()) != null){
+                                line += lineReader + "\n";
+                            }
+                            tripId = getTripId(lineReader);
+                            if(!tripId.equalsIgnoreCase(oldTripId)){
+                                break;
+                            }
+                        }
+                    }
+                }
+
+
+//                if(lineReader.contains(""))
+//                line += lineReader+"\n";
             }
             iS.close();
             return line;
         }catch (Exception e){
             e.printStackTrace();
         }
-        /*int id = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
+        /*
         try {
             InputStream iS = getResources().openRawResource(id);
             BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
@@ -196,6 +263,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return null;
     }
 
+    private String getTripId(String lineReader) {
+        String tripId = lineReader.substring(0, lineReader.indexOf(",")  );
+
+
+        return tripId;
+    }
+
+    private String getDataHourMinute(String line) {
+
+        int startIndex = line.indexOf(":") - 2;
+        int endIndex = startIndex + 5;
+
+        String time = line.substring(startIndex, endIndex);
+
+        return time;
+    }
 
 
     private void testAnimation(boolean b, Marker marker) {
@@ -283,7 +366,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         try {
             mMap = googleMap;
-            manageMarkerThreads();
+//            manageMarkerThreads();
             String url = getFormedUrl();
             setMyLocation();
             setRoutePath(url);
@@ -342,11 +425,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             String jsonField = getJsonField("route_id", route_id);
 
             String rawFile = "";
-            if (!jsonFile.contains(jsonField)) {
-                rawFile = readRawFile("route_files" + route_id);
+//            if (!jsonFile.contains(jsonField)) {
+//                rawFile = readRawFile("route_files" + route_id);
                 jsonFile = createJson(rawFile);
 
-            }
+//            }
 
             if(!jsonFile.isEmpty()) {
                 JSONObject obj = (JSONObject) jsonParser.parse(jsonFile);
@@ -446,13 +529,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                     markerController.setLatLngArray(latLngoAnimate);
                                     markerController.setAnimationCounter(0);
                                     final Handler handler = new Handler();
+                                    Toast.makeText(MapsActivity.this, "Animation started for bus: " + label, Toast.LENGTH_SHORT);
                                     handler.post(new Runnable() {
                                         @Override
                                         public void run() {
                                             int animationCounter = markerController.getAnimationCounter();
                                             markerAnimation.animateMarkerToGB(marker, markerController.getLatLngArray().get(animationCounter), new LatLngInterpolator.Linear(), markerController);
                                             if (markerController.getAnimationCounter() < markerController.getLatLngArray().size()) {
-                                                handler.postDelayed(this, (long) postDuration + 50);
+                                                handler.postDelayed(this, (long) postDuration - 150);
                                                 if (markerController.getAnimationCounter() < markerController.getLatLngArray().size() - 1) {
                                                     markerController.setAnimationCounter(markerController.getAnimationCounter() + 1);
                                                 }
@@ -491,8 +575,39 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String createJson(String rawFile) {
         String json = "";
 
+        rawFile = readRawFile("route_files" + route_id);
+        long currentTimeMillis = System.currentTimeMillis();
+        Date date = new Date(currentTimeMillis);
+        DateFormat formatter = new SimpleDateFormat("HH:mm:ss");
+        String timeFormatted = formatter.format(date);
 
-        return json;
+        String roundedUpTime = roundUpTime(timeFormatted);
+        return roundedUpTime;
+    }
+
+    private String roundUpTime(String timeFormatted) {
+
+        String hoursString = timeFormatted.substring(0, 2);
+        int hoursInt = Integer.valueOf(hoursString);
+
+        String minutesString = timeFormatted.substring(3, 5);
+        int minutesInt = Integer.valueOf(minutesString);
+
+        String secondsString = timeFormatted.substring(6, 8);
+        int secondsInt = Integer.valueOf(secondsString);
+
+        if(secondsInt >= 30){
+            minutesInt ++;
+            minutesString = String.valueOf(minutesInt);
+            minutesString = minutesString.length() > 1 ? minutesString : "0" + minutesString;
+        }
+
+        secondsString = "00";
+
+
+        String roundedTime = hoursString + ":" + minutesString + ":" + secondsString;
+
+        return roundedTime;
     }
 
     @Override
