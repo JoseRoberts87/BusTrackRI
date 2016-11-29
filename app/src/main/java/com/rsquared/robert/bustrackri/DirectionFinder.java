@@ -55,7 +55,9 @@ public class DirectionFinder {
             String link = params[0];
             try {
                 URL url = new URL(link);
-                InputStream is = url.openConnection().getInputStream();
+//                InputStream is = url.openConnection().getInputStream();
+                InputStream is = url.openStream();
+
                 StringBuffer buffer = new StringBuffer();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 

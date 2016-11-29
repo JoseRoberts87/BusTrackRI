@@ -29,7 +29,9 @@ public class MarkerController {
     private String tripId;
     private double bearing;
     private String stopId;
+    private String stopName;
     private String startTime;
+    private int stopSequence;
     private float animationDuration;
     private String directionJson;
     private String roadJson;
@@ -230,5 +232,21 @@ public class MarkerController {
 
     public void setAnimationCounter(int animationCounter) {
         this.animationCounter = animationCounter;
+    }
+
+    public String getStopName() {
+        return stopName;
+    }
+
+    public void setStopName(String stopName) {
+        this.stopName = stopName;
+    }
+
+    public int getStopSequence() {
+        return stopSequence;
+    }
+
+    public void setStopSequence(int stopSequence) {
+        this.stopSequence = stopSequence;
     }
 }
