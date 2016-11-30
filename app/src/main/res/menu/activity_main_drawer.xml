@@ -21,7 +21,19 @@
 
     </group>
 
-    <item android:title="Communicate">
+    <item android:title="Communicate"
+        android:visible="false"
+        > </item>
+
+    <item android:title="Communicate"
+        > </item>
+
+    <item android:title="Communicate"
+        > </item>
+
+    <item android:title="Communicate"
+        android:visible="false"
+        >
 
     </item>
 
