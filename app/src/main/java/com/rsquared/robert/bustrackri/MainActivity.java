@@ -140,8 +140,7 @@ public class MainActivity extends AppCompatActivity
             WebView webView = (WebView) findViewById(R.id.webView);
             webView.setWebViewClient(new WebViewClient(this));
         webView.loadUrl("http://m.ripta.com/1");
-//            webView.loadUrl("../res/raw/ripta/index.html");
-//        ../res/raw/ripta/index.html
+//            webView.loadUrl("http://localhost:8080/UIStevens/UI_Project_1/Ripta/index.html");
         }catch (Exception e){
             e.printStackTrace();
         }

@@ -22,8 +22,6 @@ public class MAPConstants {
     // Departure Time
     public static final String DEPARTURE_TIME_NOW = "now";
 
-
-
     // Travel Modes
     public static final String TRAVEL_MODES_DRIVING = "driving";
     public static final String TRAVEL_MODES_WALKING = "walking";

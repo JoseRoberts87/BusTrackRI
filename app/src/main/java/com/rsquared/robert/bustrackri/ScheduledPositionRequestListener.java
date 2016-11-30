@@ -1,5 +1,7 @@
 package com.rsquared.robert.bustrackri;
 
+import android.content.Context;
+
 import java.util.List;
 import java.util.Map;
 
@@ -8,5 +10,6 @@ import java.util.Map;
  */
 public interface ScheduledPositionRequestListener {
     void onScheduledPositionRequestStart();
-    void onScheduledPositionRequestSuccess(Map<String, List<String[]>> s);
+    void onScheduledPositionRequestSuccess(List<VehiclePosition> s, boolean initialize);
+    void onScheduledPositionFailure(String failureMsg);
 }

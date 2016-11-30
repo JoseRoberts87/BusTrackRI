@@ -4,25 +4,18 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.graphics.Path;
 import android.location.Location;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Handler;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.WindowManager;
-import android.widget.EditText;
 import android.widget.Toast;
-
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -33,14 +26,11 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.PolyUtil;
-
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,56 +38,38 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, RealTimePositionRequestListener,   ScheduledPositionRequestListener,  DirectionFinderListener, LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, GoogleMap.OnMarkerClickListener {
-
-    private EditText etOrigin;
-    private EditText etDestination;
-    private List<Marker> originMarkers = new ArrayList<>();
-    private List<Marker> destinationMarkers = new ArrayList<>();
-    private List<Polyline> polylinePaths = new ArrayList<>();
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, RealTimePositionRequestListener, ScheduledPositionRequestListener,  LocationListener, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
     private static LatLng MIDDLE_LOCATION = null;
     private int latLngIndex = 0;
     private boolean isRunnablePosted = false;
     private String route_id = "";
-    private long delayTIme = 20000;
-    private long DELAY_URL_TRHEAD = 29;
-    private long DELAY_JSON_THREAD = 29500;
+    private long POSITION_REQUEST_DELAY = 15;
     private boolean requestedRealData = false;
     private boolean requestedScheduledata = false;
-    private Map<String, List<String>> busInfoListMap;
-    private List<String> busIdList;
-    private List<LatLng> mDecodedLatLng;
     private Set<MarkerController> markerControllerSet;
     private Handler handler = new Handler();
-    private String textResult = "";
-    private ScheduledExecutorService scheduledExecutorService;
-    private Runnable runnable;
+    private ScheduledExecutorService scheduledExecutorServiceRealTime;
+    private ScheduledExecutorService scheduledExecutorServiceScheduled;
     private String directionURL;
     private String apiResults = "";
     private String snapToRoadURL;
-    private String snapToRoadResults = "";
-    protected GoogleApiClient mGoogleApiClient;;
-
+    boolean initializeRealTime = true;
+    boolean initializeScheduled = true;
     final private Context context = this;
-
-    private Map<String, List<String[]>> dataFileMarkerControllerMap;
-
+    private boolean isRawDataDisplayed = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,336 +86,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
     }
 
-    private boolean isConnected(){
-        ConnectivityManager cm = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-        boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
-        return isConnected;
-    }
-
     private void init() {
         // initialize global variables and request data and services
         route_id = getUrlNumber(getFormedUrl());
         markerControllerSet = new HashSet<>();
-
-        // request real time data and scheduled data
-
-    }
-
-    private void manageRouteData() {
-
-        // get route data from real time api or from local files (scheduled data)
-        // try first the real data from RIPTA
-        manageRealTimeData();
-
-    }
-
-    private String manageDataFile() {
-//        long currentTimeMillis = System.currentTimeMillis();
-//
-//        String timeFormatted = getFormattedTime(currentTimeMillis);
-//
-//        String roundedUpTime = roundUpTime(timeFormatted);
-        String rawDataFromFile = readRawFile("route_" + route_id);
-
-        createMarkerController(rawDataFromFile);
-        requestedScheduledata = true;
-        return rawDataFromFile;
-    }
-
-    private void createMarkerController(String rawDataFromFile) {
-
-
-
-
-    }
-
-    private void createMarkerController( String[] dataFileLineArray) {
-/*        this.marker = marker;
-        this.markerId = markerId;
-        this.latLng = latLng;
-        this.timeStamp = timeStamp;
-        this.markerOptions = markerOptions;
-        this.isRealTime = isRealTime;
-        this.markerAnimation = markerAnimation;
-        this.location = new Location(String.valueOf(latLng));
-        this.animationDuration = animationDuration;*/
-//        public MarkerController(Marker marker, String markerId, LatLng latLng, long timeStamp, MarkerOptions markerOptions, MarkerAnimation markerAnimation, float animationDuration, boolean isRealTime){
-
-        String markerId = dataFileLineArray[DataFileContants.TRIP_ID_INDEX];
-        String stopId = dataFileLineArray[DataFileContants.STOP_ID_INDEX];
-        String startTime = dataFileLineArray[DataFileContants.ARRIVAL_TIME_INDEX];
-        String stopSequence = dataFileLineArray[DataFileContants.STOP_SEQUENCE_INDEX];
-        String stopName = dataFileLineArray[DataFileContants.STOP_NAME_INDEX];
-        String latitude = dataFileLineArray[DataFileContants.STOP_LAT_INDEX];
-        String longitude = dataFileLineArray[DataFileContants.STOP_LON_INDEX];
-
-        LatLng latLng = new LatLng(Double.valueOf(latitude), Double.valueOf(longitude));
-
-        MarkerOptions markerOptions = createBusMarkerOptionDefault(latLng);
-
-        Marker marker = mMap.addMarker(markerOptions);
-
-        long timeStamp = System.currentTimeMillis();
-
-        MarkerAnimation markerAnimation = new MarkerAnimation();
-
-        float animationDuration = 45000;
-
-        boolean isRealTime = false;
-
-        MarkerController markerController = new MarkerController(marker, markerId, latLng, timeStamp, markerOptions, markerAnimation, animationDuration, isRealTime);
-        markerController.setStopId(stopId);
-        markerController.setStartTime(startTime);
-        markerController.setStopName(stopName);
-        markerController.setStopSequence(Integer.valueOf(stopSequence.trim()));
-        markerController.setTripId(markerId);
-        markerControllerSet.add(markerController);
-
-    }
-
-    private String getFormattedTime(long currentTimeMillis){
-        // manipulate time to match regular scheduled time in data files
-        currentTimeMillis -= 30000000;
-        Date date = new Date(currentTimeMillis);
-        DateFormat formatter = new SimpleDateFormat("HH:mm:ss");
-        String timeFormatted = formatter.format(date);
-        return timeFormatted;
-    }
-
-    private long getTimeStamp(String dateString){
-        Date date = new Date(dateString);
-        long time = date.getTime();
-        Timestamp timestamp = new Timestamp(time);
-        return timestamp.getTime();
-    }
-
-
-
-    private void manageRealTimeData() {
-
-        scheduledExecutorService = Executors.newScheduledThreadPool(1);
-
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-
-                pullRealTimeData();
-                requestedRealData = true;
-                String threadName = Thread.currentThread().getName();
-                Log.i("manageURLGET","Done Thread: " + threadName);
-                Log.i("textResult","JSON: " + textResult);
-                try {
-                    this.finalize();
-                } catch (Throwable throwable) {
-                    throwable.printStackTrace();
-                }
-            }
-        };
-        scheduledExecutorService.scheduleWithFixedDelay(runnable, DELAY_URL_TRHEAD, DELAY_URL_TRHEAD, TimeUnit.SECONDS);
-        scheduledExecutorService.submit(runnable);
-    }
-
-    private void pullRealTimeData(){
-        URL textUrl;
-        try {
-            textUrl = new URL(getString(R.string.real_time_url));
-            InputStreamReader inputStream = new InputStreamReader(textUrl.openStream());
-            BufferedReader bufferReader = new BufferedReader(inputStream);
-            String stringBuffer;
-            String stringText = "";
-            while((stringBuffer = bufferReader.readLine()) != null) {
-                stringText += stringBuffer;
-            }
-            bufferReader.close();
-            inputStream.close();
-            textResult = stringText;
-        } catch(MalformedURLException e) {
-            e.printStackTrace();
-        } catch(IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private String readRawFile(String fileName) {
-        String rawFile = "";
-        int id = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
-        try {
-            InputStream iS = getResources().openRawResource(id);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
-            String lineReader;
-            String line = "";
-
-            // timing stuff9
-
-            long surrentTimeMillis = System.currentTimeMillis();
-
-            String currentTime = getFormattedTime(System.currentTimeMillis());
-            String currentHourMin = getHourMinFormat(currentTime);
-
-            dataFileMarkerControllerMap = new HashMap<>();
-
-            while((lineReader = reader.readLine()) != null){
-
-                // two ways to do this
-                if(true && lineReader.contains(":")){
-                    // read everything or a chunk of it and set start time in arrays
-
-                    String dataHourMinute = getDataHourMinute(lineReader);
-
-                    if(dataHourMinute.equalsIgnoreCase(currentHourMin)){
-                        String tripId = getTripId(lineReader);
-                        String oldTripId = tripId;
-                        line += lineReader + "\n";
-
-                        String[] lineArray = lineReader.split(",");
-                        createMarkerController(lineArray);
-//                        String tripLine = "";
-                        List<String[]> markerControllerListOfArrays  = new ArrayList<>();
-                        while((lineReader = reader.readLine()) != null) {
-
-                            tripId = getTripId(lineReader);
-                            if(tripId.equalsIgnoreCase(oldTripId)){
-                                line += lineReader + "\n";
-//                                tripLine += lineReader;
-                                String[] tripLineArray = lineReader.split(",");
-                                markerControllerListOfArrays.add(tripLineArray);
-                            }else{
-                                // this is a map with everything of a particular Trip_Id
-                                dataFileMarkerControllerMap.put(oldTripId, markerControllerListOfArrays);
-                                break;
-                            }
-
-                        }
-                    }
-                }else if(lineReader.contains(":")){
-                    // read everything and check if it it near to current time
-
-                    String dataHourMinute = getDataHourMinute(lineReader);
-
-                    if(dataHourMinute.equalsIgnoreCase(currentHourMin)){
-                        String tripId = getTripId(lineReader);
-                        String oldTripId = tripId;
-                        line += lineReader + "\n";
-                        while((lineReader = reader.readLine()) != null) {
-
-                            tripId = getTripId(lineReader);
-
-                            if(tripId.equalsIgnoreCase(oldTripId)){
-                                line += lineReader + "\n";
-                            }else{
-                                break;
-                            }
-                        }
-                    }
-                }
-
-
-//                if(lineReader.contains(""))
-//                line += lineReader+"\n";
-            }
-            iS.close();
-            return line;
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        /*
-        try {
-            InputStream iS = getResources().openRawResource(id);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                rawFile += line + "\n";
-            }
-        }catch (IOException e) {
-            e.printStackTrace();
-        }*/
-        return null;
-    }
-
-    private String getHourMinFormat(String currentTime) {
-        return currentTime.substring(0, currentTime.lastIndexOf(":"));
-    }
-
-    private String getTripId(String lineReader) {
-        String tripId = lineReader.substring(0, lineReader.indexOf(",")  );
-
-
-        return tripId;
-    }
-
-    private String getDataHourMinute(String line) {
-
-        int startIndex = line.indexOf(":") - 2;
-        int endIndex = startIndex + 5;
-
-        String time = line.substring(startIndex, endIndex);
-
-        return time;
-    }
-
-
-    private void testAnimation(boolean b, Marker marker) {
-        try {
-            MarkerOptions markerOptions;
-//            Marker marker = null;
-            MarkerController markerController = null;
-            MarkerAnimation markerAnimation;
-
-            LatLng latLng = new LatLng(41.8249528, -71.4113005);
-            LatLng newLatLng;
-            if (b){
-                double latitude = marker.getPosition().latitude - .0039;
-                double longitude = marker.getPosition().longitude - .000137;
-                newLatLng = new LatLng(latitude, longitude);
-                String origin = latLng.latitude + ","+latLng.longitude;
-                String destination = newLatLng.latitude + "," + newLatLng.longitude;
-
-                pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
-                        MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST,  markerController);
-                List<String> polylineList = getDirectionJSONPolyLine(markerController);
-//                                for(String polyline: polylinesArray){
-                PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
-
-                for(String polyline: polylineList) {
-                    List<LatLng> latLngList = PolyUtil.decode(polyline);
-                    for (LatLng latLngPolyline : latLngList) {
-                        polylineOptions.add(latLngPolyline);
-                    }
-
-//                                    polylineOptions.addAll(latLngList);
-                }
-                Log.i("polylines" , "polylines = " + polylineList);
-
-                mMap.addPolyline(polylineOptions);
-
-            }else{
-                newLatLng = new LatLng(41.8249528, -71.4113005);
-            }
-
-
-            markerOptions = createBusMarkerOptionDefaultRealTime(latLng, "test_bus");
-            marker = mMap.addMarker(markerOptions);
-            markerAnimation = new MarkerAnimation();
-            markerController = new MarkerController(marker, "test_bus", latLng, System.currentTimeMillis(), markerOptions, markerAnimation, 30000, true);
-            markerControllerSet.add(markerController);
-
-            markerAnimation.animateMarkerToGB(marker, newLatLng, new LatLngInterpolator.Linear(), markerController);
-
-
-
-            mMap.setOnMarkerClickListener(this);
-        }catch (Exception e){
-            e.printStackTrace();
-        }
     }
 
     /** Called when the user clicks a marker. */
     @Override
     public boolean onMarkerClick(final Marker marker) {
-
-        testAnimation(true, marker);
-
         Toast.makeText(this,
                 marker.getTitle() +
                         " has been clicked " + /*clickCount*/ " times.",
@@ -468,246 +119,220 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         try {
             mMap = googleMap;
-//            manageMarkerThreads();
             String url = getFormedUrl();
             setMyLocation();
             setRoutePath(url);
             setMapInfo(url);
-            requestPositionData();
-//            testAnimation(false, null);
+            requestPositionData(true);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void requestPositionData() {
+    private void requestPositionData(final boolean initialize) {
 
-        requestRealTimePosition();
+        // request real time data from RIPTA API URL
+        scheduledExecutorServiceRealTime = Executors.newScheduledThreadPool(1);
+
+        Runnable realTimeRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isConnected()) {
+                    requestRealTimePosition(initializeRealTime);
+                    String threadName = Thread.currentThread().getName();
+                    Log.i("requestRealTimePosition", "Done Thread: " + threadName);
+                    Log.i("requestRealTimePosition", "JSON to be printed.... **** -----");
+                    try {
+                        this.finalize();
+                    } catch (Throwable throwable) {
+                        throwable.printStackTrace();
+                    }
+                } else {
+                    isRawDataDisplayed = true;
+                    // display that real time is not available because there is no internet connection
+                    // might want to remove this call and make a listener for when connectivity changes
+                    // for now use this sheat
+                }
+            }
+        };
+        scheduledExecutorServiceRealTime.scheduleWithFixedDelay(realTimeRunnable, POSITION_REQUEST_DELAY, POSITION_REQUEST_DELAY, TimeUnit.SECONDS);
+        scheduledExecutorServiceRealTime.submit(realTimeRunnable);
         requestedRealData = true;
 
-        requestScheduledPosition();
+        // Getting data from google_transit zip files
+        scheduledExecutorServiceScheduled = Executors.newScheduledThreadPool(1);
+
+        isRawDataDisplayed = !isConnected();
+        Runnable scheduledRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isRawDataDisplayed) {
+                    requestScheduledPosition(initializeScheduled);
+                    String threadName = Thread.currentThread().getName();
+                    Log.i("ScheduledPosition", "Thread: " + threadName);
+                    Log.i("ScheduledPosition", "JSON to be printed.... **** ");
+                    try {
+                        this.finalize();
+                    } catch (Throwable throwable) {
+                        throwable.printStackTrace();
+                    }
+                } else {
+                    // Do not display and whatever....
+                    // maybe in the future create a class to manage changes on isRawDataDisplayed
+                    // to then decide if execute the scheduledExecutorServiceScheduled
+                }
+            }
+        };
+        scheduledExecutorServiceScheduled.scheduleWithFixedDelay(scheduledRunnable, POSITION_REQUEST_DELAY, POSITION_REQUEST_DELAY, TimeUnit.SECONDS);
+        scheduledExecutorServiceScheduled.submit(scheduledRunnable);
         requestedScheduledata = true;
-
     }
 
+    /**
+     * Checks to see if device has internet connection
+     * @return
+     */
+    private boolean isConnected(){
+        ConnectivityManager cm = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return  activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+    }
 
-
-    private void requestRealTimePosition() {
+    /**
+     * Request Real time vehicla position from RIPTA API http://realtime.ripta.com:81/api/...
+     * @param initialize
+     */
+    private void requestRealTimePosition(boolean initialize) {
         try {
-            new RealTimePositionRequest(this, getString(R.string.real_time_url), this.getBaseContext()).execute();
+            new RealTimePositionRequest(this, getString(R.string.real_time_url), this.getBaseContext(), initialize, route_id).execute();
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-
-    }
-
-    private void requestScheduledPosition() {
-
-        String fileName = "route_" + route_id;
-        int resourceId = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
-        InputStream inputStream = context.getResources().openRawResource(resourceId);
-        try {
-            new ScheduledPositionRequest(this, inputStream).execute();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-
     }
 
     @Override
     public void onRealTimePositionRequestStart() {
-
+        // Do stuff whatever you want or need
     }
 
     @Override
-    public void onRealTimePositionRequestSuccess(String s) {
+    public void onRealTimePositionRequestSuccess(List<VehiclePosition> vehiclePositionList, boolean initialize) {
+        createScheduledMarkerController(vehiclePositionList, initialize);
+        if (initializeRealTime) {
+            initializeRealTime = false;
+        }
+    }
 
+    @Override
+    public void onRealTimeConnectionFailure(String failureMsg) {
+        // show message that no internet connection and show scheduled data
+        isRawDataDisplayed = true;
+        Toast.makeText(this, "Real Time Not Available\n" + failureMsg, Toast.LENGTH_LONG).show();
+    }
+
+    /**
+     * Get Vehicle Position from google_transit.zip files
+     * @param initialize
+     */
+
+    private void requestScheduledPosition(boolean initialize) {
+        String fileName = "route_" + route_id;
+        int resourceId = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
+        InputStream inputStream = context.getResources().openRawResource(resourceId);
+        try {
+            new ScheduledPositionRequest(this, inputStream, initialize).execute();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onScheduledPositionRequestStart() {
-
+        // Do stuff whatever you want or need
     }
 
     @Override
-    public void onScheduledPositionRequestSuccess(Map<String, List<String[]>> s) {
-
+    public void onScheduledPositionRequestSuccess(List<VehiclePosition> vehiclePositionList, boolean initialize) {
+        createScheduledMarkerController(vehiclePositionList, initialize);
+        if(initializeScheduled){
+            initializeScheduled = false;
+        }
     }
 
+    @Override
+    public void onScheduledPositionFailure(String failureMsg) {
+        // show message that schedule not available
+        isRawDataDisplayed = false;
+        Toast.makeText(this, "Scheduled Time Not Available\n" + failureMsg, Toast.LENGTH_LONG).show();
+    }
 
-    private void manageMarkerThreads(){
-        while(!requestedRealData && !requestedScheduledata){
-            // Wait
-        }
-//        setBusInfoListMap(route_id);
-        runnable = new Runnable() {
+    /**
+     * This method will take the vehicle position list and create markerControllers
+     * Then it will set the markerController into Global MarkerControllerSet
+     * @param vehiclePositionList
+     * @param initialize
+     */
+    private void createScheduledMarkerController(List<VehiclePosition> vehiclePositionList, boolean initialize) {
+
+        MarkerController markerContoller;
+            for(VehiclePosition vehiclePosition: vehiclePositionList){
+                // Get vehicle information to create MarkerController
+                String stopName = vehiclePosition.getStopName();
+                String startTime = vehiclePosition.getStartTime();
+                int stopSequence = vehiclePosition.getStopSequence();
+                String tripId = vehiclePosition.getTripId();
+                LatLng latLng = vehiclePosition.getLatLng();
+                long timeStamp = System.currentTimeMillis();
+
+                if(initialize) {
+                    // Create Brand New MarkerController to add to Global markerControllerSet
+                    MarkerAnimation markerAnimation = new MarkerAnimation();
+                    MarkerOptions markerOptions = createBusMarkerOptionDefault(latLng);
+                    Marker marker = mMap.addMarker(markerOptions);
+                    markerContoller = new MarkerController(marker, tripId, latLng, timeStamp, markerOptions, markerAnimation, 30000, false);
+                    markerControllerSet.add(markerContoller);
+                }else{
+                    // Get old markerController by Id from MarkerControllerSet
+                    markerContoller = getMarkerControllerById(tripId);
+
+                    long markerControllerTimeStamp = markerContoller.getTimeStamp();
+                    long animationDuration = markerControllerTimeStamp - timeStamp;
+
+                    markerContoller.setLatLng(latLng);
+                    markerContoller.setAnimationDuration(animationDuration);
+
+                    markerControllerSet.add(markerContoller);
+                }
+            }
+    }
+
+    /**
+     * Animates a marker in the map based on new latLng and timestamp
+     * @param markerController
+     */
+    private void animateMarkerController(final MarkerController markerController){
+        final MarkerAnimation markerAnimation = markerController.getMarkerAnimation();
+        final Marker marker = markerController.getMarker();
+        final float postDuration = markerController.getAnimationDuration();
+
+
+        final Handler handler = new Handler();
+        handler.post(new Runnable() {
             @Override
             public void run() {
-//                setBusInfoListMap();
-                setBusInfoDataFIle();
-                Log.i("ManageMarkerThread", "MarkerControllerSet = " + markerControllerSet);
-                handler.postDelayed(this, DELAY_JSON_THREAD);
-            }
-        };
-        handler.post(runnable);
-    }
-
-
-
-
-    private String getDirectionJSONFromURL(String url){
-        URL textUrl;
-        String json = "";
-        try {
-            textUrl = new URL(url);
-            BufferedReader bufferReader = new BufferedReader(
-                    new InputStreamReader(textUrl.openStream()));
-            String stringBuffer;
-            while((stringBuffer = bufferReader.readLine()) != null) {
-                json += stringBuffer;
-            }
-            bufferReader.close();
-        } catch(MalformedURLException e) {
-            e.printStackTrace();
-        } catch(IOException e) {
-            e.printStackTrace();
-        }
-        return json;
-    }
-
-    private void setBusInfoDataFIle() {
-
-//        Map<String , List<String[]>>
-        if(dataFileMarkerControllerMap == null){
-            return;
-        }
-        for(Map.Entry<String , List<String[]>> dataFileMarkerController: dataFileMarkerControllerMap.entrySet()){
-
-            String[] currentDataFileLineArray = null;
-
-            List<String[]> dataFileLinesArrayList = dataFileMarkerController.getValue();
-            for(String[] dataFileLinesArray: dataFileLinesArrayList){
-                String currentTime = getFormattedTime(System.currentTimeMillis());
-                String currentHourMin = getHourMinFormat(currentTime)+":00";
-                String dataFileTime = dataFileLinesArray[DataFileContants.ARRIVAL_TIME_INDEX].trim();
-                if(dataFileTime.equalsIgnoreCase(currentHourMin.trim())){
-                    currentDataFileLineArray = dataFileLinesArray;
-                    break;
-                }
-            }
-
-            if(currentDataFileLineArray == null){
-                break;
-            }
-
-            MarkerController markerController = getMarkerControllerById(dataFileMarkerController.getKey());
-
-            String latitude = currentDataFileLineArray[DataFileContants.STOP_LAT_INDEX];
-            String longitude = currentDataFileLineArray[DataFileContants.STOP_LON_INDEX];
-
-            Marker marker;
-            String label = markerController.getMarkerId();
-//            LatLng latLng = markerController.getLatLng();
-            LatLng latLng = new LatLng(Double.valueOf(latitude), Double.valueOf(longitude));
-            MarkerAnimation markerAnimation;
-            String stopId = markerController.getStopId();
-            String startTime = markerController.getStartTime();
-            String tripId = markerController.getTripId();
-            Location newLocation = new Location(String.valueOf(latLng));
-
-            if (doesMarkerExist(label)) {
-                marker = getMarkerById(label);
-                markerController = getMarkerControllerById(label);
-
-                if (hasMarkerLatLngChanged(markerController, latLng)) {
-                    long oldTimeStamp = markerController.getTimeStamp();
-                    long newTimeStamp = System.currentTimeMillis();
-                    markerController.setTimeStamp(newTimeStamp);
-                    long animationDuration = newTimeStamp - oldTimeStamp;
-
-//                                float animationDuration1000 = animationDuration/1000;
-                    String origin = markerController.getLatLng().latitude + "," + markerController.getLatLng().longitude;
-                    String destination = latLng.latitude + "," + latLng.longitude;
-
-
-                    // Polyline animation
-//                                }
-//                                Log.i("polylines" , "polylines = " + polylinesArray);
-//                                getNearestRoadLocation(latLng);
-                    markerAnimation = getMarkerAnimationById(label);
-                    markerController.setLatLng(latLng);
-                    markerController.setLocation(newLocation);
-                    markerController.setRealTime(true);
-//                                markerController.setTimeStamp(timestamp);
-                    markerController.setStopId(stopId);
-//                    markerController.setBearing(bearing);
-                    markerController.setTripId(tripId);
-                    markerController.setStartTime(startTime);
-
-//                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
-
-                    // getting polylines from the direction services and adding the lines to the screen
-                    pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
-                            MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST, markerController);
-                    List<String> polylineArray = getDirectionJSONPolyLine(markerController);
-
-                    pullRoadAPIData(origin, destination, markerController);
-//                                for(String polyline: polylinesArray){
-                    PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
-                    List<LatLng> latLngoAnimate = new ArrayList<>();
-                    for (String polyline : polylineArray) {
-                        List<LatLng> latLngList = PolyUtil.decode(polyline);
-                        latLngoAnimate = PolyUtil.decode(polyline);
-                        Log.i("polylines", "polylines = " + polyline);
-
-                        for (LatLng latLngPolyline : latLngList) {
-                            polylineOptions.add(latLngPolyline);
-                            Log.i("polylines", "latLngPolyline = " + latLngPolyline + " Added!!! ");
-                        }
+                int animationCounter = markerController.getAnimationCounter();
+                markerAnimation.animateMarkerToGB(marker, markerController.getLatLngArray().get(animationCounter), new LatLngInterpolator.Linear(), markerController);
+                if (markerController.getAnimationCounter() < markerController.getLatLngArray().size()) {
+                    handler.postDelayed(this, (long) postDuration - 150);
+                    if (markerController.getAnimationCounter() < markerController.getLatLngArray().size() - 1) {
+                        markerController.setAnimationCounter(markerController.getAnimationCounter() + 1);
                     }
-                    animationDuration = animationDuration / latLngoAnimate.size();
-                    final float postDuration = animationDuration;
-
-                    markerController.setAnimationDuration(animationDuration);
-
-//                                for(LatLng latLngAn: latLngoAnimate){
-                    markerController.setLatLngArray(latLngoAnimate);
-                    markerController.setAnimationCounter(0);
-                    final Handler handler = new Handler();
-                    Toast.makeText(MapsActivity.this, "Animation started for bus: " + label, Toast.LENGTH_SHORT);
-                    final MarkerAnimation finalMarkerAnimation = markerAnimation;
-                    final MarkerController finalMarkerController = markerController;
-                    final Marker finalMarker = marker;
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            int animationCounter = finalMarkerController.getAnimationCounter();
-                            finalMarkerAnimation.animateMarkerToGB(finalMarker, finalMarkerController.getLatLngArray().get(animationCounter), new LatLngInterpolator.Linear(), finalMarkerController);
-                            if (finalMarkerController.getAnimationCounter() < finalMarkerController.getLatLngArray().size()) {
-                                handler.postDelayed(this, (long) postDuration - 150);
-                                if (finalMarkerController.getAnimationCounter() < finalMarkerController.getLatLngArray().size() - 1) {
-                                    finalMarkerController.setAnimationCounter(finalMarkerController.getAnimationCounter() + 1);
-                                }
-                            }
-                        }
-                    });
-
-//                                }
-//                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
-
-
-//                                    polylineOptions.addAll(latLngList);
-                    mMap.addPolyline(polylineOptions);
-
-
-                    Log.i("MarkerAnimation", "Bus Label: " + markerController.getMarkerId() + ", was animated from laLng = " + marker.getPosition() + ", to latLng = " + latLng);
                 }
             }
-        }
-
+        });
     }
 
-    private Map<String, List<String>> setBusInfoListMap() {
+      /*  private Map<String, List<String>> setBusInfoListMap() {
         try {
             List<String> busInfoList;
             JSONParser jsonParser = new JSONParser();
@@ -864,66 +489,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         return busInfoListMap;
     }
-
-    private String createJson(String rawFile) {
-        String json = "";
-
-        rawFile = readRawFile("route_files" + route_id);
-        long currentTimeMillis = System.currentTimeMillis();
-        Date date = new Date(currentTimeMillis);
-        DateFormat formatter = new SimpleDateFormat("HH:mm:ss");
-        String timeFormatted = formatter.format(date);
-
-        String roundedUpTime = roundUpTime(timeFormatted);
-        return roundedUpTime;
-    }
-
-    private String roundUpTime(String timeFormatted) {
-
-        String hoursString = timeFormatted.substring(0, 2);
-        int hoursInt = Integer.valueOf(hoursString);
-
-        String minutesString = timeFormatted.substring(3, 5);
-        int minutesInt = Integer.valueOf(minutesString);
-
-        String secondsString = timeFormatted.substring(6, 8);
-        int secondsInt = Integer.valueOf(secondsString);
-
-        if(secondsInt >= 30){
-            minutesInt ++;
-            minutesString = String.valueOf(minutesInt);
-            minutesString = minutesString.length() > 1 ? minutesString : "0" + minutesString;
-        }
-
-        secondsString = "00";
-
-
-        String roundedTime = hoursString + ":" + minutesString + ":" + secondsString;
-
-        return roundedTime;
-    }
-
-    @Override
-    public void onConnected(@Nullable Bundle bundle) {
-
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
-    }
-
-
-
+*/
     private class DirectionServiceTask extends AsyncTask<MarkerController, Void, String> {
-
-//        String textResult;
-
         @Override
         protected String doInBackground(MarkerController... params) {
             URL textUrl;
@@ -956,19 +523,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         @Override
         protected void onPostExecute(String result) {
             super.onPostExecute(result);
-
             // do whatever with results
-
-
         }
-
-
     }
 
+    // this is not implemented yet
     private class RoadServiceTask extends AsyncTask<MarkerController, Void, String> {
-
-//        String textResult;
-
         @Override
         protected String doInBackground(MarkerController... params) {
             URL textUrl;
@@ -1004,134 +564,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // do whatever with results
 
         }
-
-
-    }
-
-
-    @Override
-    public void onDirectionFinderStart() {
-//        progressDialog = ProgressDialog.show(this, "Please wait.",
-//                "Finding direction..!", true);
-
-        if (originMarkers != null) {
-            for (Marker marker : originMarkers) {
-                marker.remove();
-            }
-        }
-
-        if (destinationMarkers != null) {
-            for (Marker marker : destinationMarkers) {
-                marker.remove();
-            }
-        }
-
-        if (polylinePaths != null) {
-            for (Polyline polyline:polylinePaths ) {
-                polyline.remove();
-            }
-        }
-    }
-
-    @Override
-    public void onDirectionFinderSuccess(List<Route> routes) {
-//        progressDialog.dismiss();
-        polylinePaths = new ArrayList<>();
-        originMarkers = new ArrayList<>();
-        destinationMarkers = new ArrayList<>();
-
-        for (Route route : routes) {
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(route.startLocation, 16));
-//            ((TextView) findViewById(R.id.tvDuration)).setText(route.duration.text);
-//            ((TextView) findViewById(R.id.tvDistance)).setText(route.distance.text);
-
-            originMarkers.add(mMap.addMarker(new MarkerOptions()
-                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue))
-                    .title(route.startAddress)
-                    .position(route.startLocation)));
-            destinationMarkers.add(mMap.addMarker(new MarkerOptions()
-                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_blue))
-                    .title(route.endAddress)
-                    .position(route.endLocation)));
-
-            PolylineOptions polylineOptions = new PolylineOptions().
-                    geodesic(true).
-                    color(Color.BLUE).
-                    width(10);
-
-            for (int i = 0; i < route.points.size(); i++)
-                polylineOptions.add(route.points.get(i));
-
-            polylinePaths.add(mMap.addPolyline(polylineOptions));
-        }
-    }
-
-    private void sendRequest() {
-        String origin = "etOrigin.getText().toString()";
-        String destination = "etDestination.getText().toString()";
-        if (origin.isEmpty()) {
-            Toast.makeText(this, "Please enter origin address!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (destination.isEmpty()) {
-            Toast.makeText(this, "Please enter destination address!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        try {
-            new DirectionFinder(this, origin, destination).execute();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
     }
 
     private void pullDirectionAPIData(String Origin, String destination, String outputFormat, String travelMode, String transitMode, String departureTime, String trafficModel, MarkerController markerController){
+        String apiKey = getString(R.string.google_maps_key);
+
         /*String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
                 + "&destination=" + destination + "&key=" + getString(R.string.google_maps_key)+ "&mode=" + travelMode + "&traffic_model=" + trafficModel
                 + "&transit_mode=" + transitMode + "&departure_time=" + departureTime;
         */
-/*
-        String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
-                + "&destination=" + destination +*//* "&key=" + apiKey + *//*"&mode=" + travelMode + "&traffic_model=" + trafficModel
-                + *//*"&transit_mode=" + transitMode +*//* "&departure_time=" + departureTime;*/
-
-        String apiKey = getString(R.string.google_maps_key);
         String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
                 + "&destination=" + destination + "&departure_time=" + departureTime;
         directionURL = url;
         Log.i("getDirectionsAPI", " The url to call to Googles Dirrection API is: " + url);
 
         new DirectionServiceTask().execute(markerController);
-
-     /*   mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .addApi(Places.GEO_DATA_API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .build();
-        MapsInitializer.initialize(this);
-        mGoogleApiClient.connect();*/
-
-//        return url;
     }
 
     private void pullRoadAPIData(String Origin, String destination, MarkerController markerController ){
+        String apiKey = getString(R.string.google_maps_key);
         /*String url =  "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + Origin
                 + "&destination=" + destination + "&key=" + getString(R.string.google_maps_key)+ "&mode=" + travelMode + "&traffic_model=" + trafficModel
                 + "&transit_mode=" + transitMode + "&departure_time=" + departureTime;
         */
-        String apiKey = getString(R.string.google_maps_key);
 ;        String url =  "https://roads.googleapis.com/v1/snapToRoads?path=" + Origin + "|" + destination + "&key=" + apiKey;
         snapToRoadURL = url;
         Log.i("getRoadAPI", " The url to call to Googles Dirrection API is: " + url);
-//        String directionsJSON = getDirectionJSONFromURL(url);
-//        Log.i("getDirections", "directionsJSON = " + directionsJSON);
-//        new RoadServiceTask().execute(markerController);
-    }
-
-    private void getNearestRoadLocation(LatLng latLng) {
-
-        Path.Direction direction = Path.Direction.valueOf(String.valueOf(latLng));
-        Log.i("getNearestRoadLocation", " direction = " + direction);
     }
 
     private boolean hasMarkerLatLngChanged(MarkerController markerController, LatLng latLng) {
@@ -1139,13 +597,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //        boolean equalsign = oldLatLng == latLng;    cannot use == to compare
         boolean equalfunction = oldLatLng.equals(latLng);
         return !equalfunction;
-    }
-
-    private boolean hasMarkerLocationChanged(MarkerController markerController, Location newLocation) {
-        Location oldLocation = markerController.getLocation();
-        boolean equalsign = oldLocation == newLocation;
-        boolean equalfunction = oldLocation.equals(newLocation);
-        return oldLocation != newLocation;
     }
 
     private MarkerAnimation getMarkerAnimationById(String markerId) {
@@ -1224,25 +675,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
                 .snippet(snippet).title(title);
         return markerOptions;
-    }
-
-
-    private String getJsonField(String key, String value) {
-        return "\""+key+"\":\""+value+"\"";
-    }
-
-    private String readAPIFile() {
-        String apiFile = "";
-        BufferedReader bufferedReader = getBufferReaderFromUrl(getString(R.string.real_time_url));
-        String inputLine;
-        try {
-            while ((inputLine = bufferedReader.readLine()) != null) {
-                apiFile += inputLine;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return apiFile;
     }
 
     private List<LatLng> getListDecodedLatLng(String url) {
@@ -1351,7 +783,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                mDecodedLatLng = decodedLatLng;
                 if (decodedLatLng != null) {
 
 //                    Log.i("decodedLatLng: ", decodedLatLng.toString());
@@ -1636,10 +1067,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void destroyThreads() {
         if(handler != null){
-            handler.removeCallbacks(runnable);
+//            handler.removeCallbacks(runnable);
         }
-        if(scheduledExecutorService != null){
-            scheduledExecutorService.shutdownNow();
+        if(scheduledExecutorServiceRealTime != null){
+            scheduledExecutorServiceRealTime.shutdownNow();
+        }
+        if(scheduledExecutorServiceScheduled != null){
+            scheduledExecutorServiceScheduled.shutdownNow();
         }
         Log.i("destroyThreads", "Handler calls removed");
     }
