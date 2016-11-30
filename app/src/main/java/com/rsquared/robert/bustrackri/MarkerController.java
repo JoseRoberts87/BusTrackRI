@@ -37,6 +37,7 @@ public class MarkerController {
     private String roadJson;
     private List<LatLng> latLngArray;
     private int animationCounter;
+    private boolean isBeenAnimated;
 
     public MarkerController(Marker marker, String markerId, LatLng latLng, long timeStamp, MarkerOptions markerOptions, MarkerAnimation markerAnimation, float animationDuration, boolean isRealTime){
         this.marker = marker;
@@ -248,5 +249,13 @@ public class MarkerController {
 
     public void setStopSequence(int stopSequence) {
         this.stopSequence = stopSequence;
+    }
+
+    public boolean isBeenAnimated() {
+        return isBeenAnimated;
+    }
+
+    public void setBeenAnimated(boolean beenAnimated) {
+        isBeenAnimated = beenAnimated;
     }
 }

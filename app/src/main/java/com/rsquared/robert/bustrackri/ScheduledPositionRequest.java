@@ -2,6 +2,7 @@ package com.rsquared.robert.bustrackri;
 
 import android.content.Context;
 import android.os.AsyncTask;
+import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -41,6 +42,8 @@ public class ScheduledPositionRequest {
 
         @Override
         protected List<VehiclePosition> doInBackground(InputStream... params) {
+            Log.i("AsyncTask Thread =>", " Thread for ScheduledPositionRequest");
+
             InputStream inputStream = params[0];
             Map<String, List<String[]>> dataFileArrayListMap = new HashMap<>();
             try {

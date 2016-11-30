@@ -1,27 +1,36 @@
 package com.rsquared.robert.bustrackri;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
+import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Handler;
+import android.provider.Settings;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.WindowManager;
 import android.widget.Toast;
+
+import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.internal.LocationRequestUpdateData;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -46,7 +55,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, RealTimeAPIPositionRequestListener, ScheduledPositionRequestListener, DirectionAPIRequestListener,  LocationListener, GoogleMap.OnMarkerClickListener {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMyLocationButtonClickListener, RealTimeAPIPositionRequestListener, ScheduledPositionRequestListener, DirectionAPIRequestListener,  LocationListener, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
     private static LatLng MIDDLE_LOCATION = null;
@@ -70,9 +79,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        // Initialize variables and data calls and service calls
-        init();
-
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -84,6 +90,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // initialize global variables and request data and services
         route_id = getUrlNumber(getFormedUrl());
         markerControllerSet = new HashSet<>();
+        UiSettings mUiSettings = mMap.getUiSettings();
+        mUiSettings.setZoomControlsEnabled(true);
+        mUiSettings.setCompassEnabled(true);
+        requestMyLocation();
     }
 
     /** Called when the user clicks a marker. */
@@ -113,8 +123,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         try {
             mMap = googleMap;
+
+            // Initialize variables and data calls and service calls
+            init();
             String url = getFormedUrl();
-            setMyLocation();
             setRoutePath(url);
             setMapInfo(url);
             requestPositionData();
@@ -132,10 +144,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void run() {
                 if (isConnected()) {
+                    Log.i("realTimeRunnable =>", " Thread for scheduledExecutorServiceRealTime");
                     requestRealTimePosition(initializeRealTime);
                     String threadName = Thread.currentThread().getName();
-                    Log.i("requestRealTimePosition", "Done Thread: " + threadName);
-                    Log.i("requestRealTimePosition", "JSON to be printed.... **** -----");
                     try {
                         this.finalize();
                     } catch (Throwable throwable) {
@@ -161,10 +172,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void run() {
                 if (isRawDataDisplayed) {
+                    Log.i("scheduledRunnable =>", " Thread for scheduledExecutorServiceScheduled");
                     requestScheduledPosition(initializeScheduled);
                     String threadName = Thread.currentThread().getName();
-                    Log.i("ScheduledPosition", "Thread: " + threadName);
-                    Log.i("ScheduledPosition", "JSON to be printed.... **** ");
                     try {
                         this.finalize();
                     } catch (Throwable throwable) {
@@ -267,7 +277,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void run() {
                 manageMarkerController(vehiclePositionList, initialize);
-                Log.i("ManageMarkerThread", "MarkerControllerSet = " + markerControllerSet);
+                Log.i("manageMarkerThreads =>", " Thread for manageMarkerController");
                 try {
                     this.finalize();
                 } catch (Throwable throwable) {
@@ -308,6 +318,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
                 Marker marker = mMap.addMarker(markerOptions);
                 markerController = new MarkerController(marker, tripId, destinationLatLng, timeStamp, markerOptions, markerAnimation, 100, false);
+                markerController.setBeenAnimated(false);
                 markerControllerSet.add(markerController);
                 Toast.makeText(this, "Initializing markerId: " + markerController.getMarkerId() , Toast.LENGTH_LONG).show();
             }else if(!initialize){
@@ -334,8 +345,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     // call animation for this markerController
                     MarkerAnimation markerAnimation = markerController.getMarkerAnimation();
 //                    Marker marker = markerController.getMarker();
-                    Toast.makeText(this, "Animating bus: " + markerController.getMarkerId() + " this is realtime = " + isRealTime, Toast.LENGTH_LONG).show();
-
 
                     long markerControllerTimeStamp = markerController.getTimeStamp();
                     long animationDuration = timeStamp - markerControllerTimeStamp ;
@@ -345,7 +354,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //                    markerController.setLatLng(destinationLatLng);
                     markerController.setAnimationDuration(animationDuration);
 
-                    markerAnimation.animateMarkerToGB(marker, destinationLatLng, new LatLngInterpolator.Linear(), markerController);
+                    if(!markerController.isBeenAnimated()) {
+                        Toast.makeText(this, "Animating bus: " + markerController.getMarkerId() + " this is realtime = " + isRealTime, Toast.LENGTH_LONG).show();
+                        markerAnimation.animateMarkerToGB(marker, destinationLatLng, new LatLngInterpolator.Linear(), markerController);
+                    }
 
 //                    markerController.setTimeStamp(System.currentTimeMillis());
                 }
@@ -442,7 +454,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                     // permission denied, boo! Disable the
                     // functionality that depends on this permission.
-                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this.getBaseContext(), "permission denied", Toast.LENGTH_LONG).show();
                 }
                 return;
 
@@ -450,10 +462,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // permissions this app might request
     }
 
-    private void setMyLocation() {
+    private void requestMyLocation() {
+
+        final LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
+            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                checkIfNetworkLocationAvailable();
+            }else {
+                // do nothing
+            }
             mMap.setMyLocationEnabled(true);
+
         } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
@@ -462,6 +485,40 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         mMap.setMyLocationEnabled(true);
     }
+
+
+    /**
+     * checks if NETWORK LOCATION PROVIDER is available
+     */
+    private void checkIfNetworkLocationAvailable() {
+
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        boolean networkLocationEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+        if(!networkLocationEnabled){
+            //show dialog to allow user to enable location settings
+            AlertDialog.Builder dialog = new AlertDialog.Builder(context);
+            dialog.setTitle("Enable GPS");
+            dialog.setMessage("For Better Service Enale GPS");
+
+            dialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int which) {
+                    startActivityForResult(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS), 0);
+                }
+            });
+
+            dialog.setNegativeButton("No", new DialogInterface.OnClickListener() {
+
+                public void onClick(DialogInterface dialog, int which) {
+                    //nothing to do
+                }
+            });
+
+            dialog.show();
+        }
+
+    }
+
 
     private String getUrlNumber(String url){
         return url.substring(url.lastIndexOf("/") + 1, url.length());
@@ -715,41 +772,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Log.i("LocationChanged", "Location has chnged to: " + location.getLatitude() + ", " + location.getLongitude());
     }
 
-    public BufferedReader getBufferReaderFromUrl(String apiURL) {
-        BufferedReader bufferReaderFromUrl = null;
-        try {
-            URL oracle = new URL(apiURL);
-            bufferReaderFromUrl = new BufferedReader(new InputStreamReader(oracle.openStream()));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return bufferReaderFromUrl;
-    }
-
     // Activity management to stop and run background threads
     @Override
     protected void onStart() {
         super.onStart();
-//        startThreads();
     }
 
     @Override
     protected void onRestart() {
-//        super.onRestart();
-        startThreads();
+        super.onRestart();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        startThreads();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
         destroyThreads();
-
     }
 
     @Override
@@ -768,17 +810,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && !isRunnablePosted) {
-            startThreads();
+
         } else if(!hasFocus){
             destroyThreads();
         }
     }
-
-    private void startThreads() {
-
-
-    }
-
 
     private void destroyThreads() {
         if(handler != null){
@@ -791,5 +827,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             scheduledExecutorServiceScheduled.shutdownNow();
         }
         Log.i("destroyThreads", "Handler calls removed");
+    }
+
+    @Override
+    public boolean onMyLocationButtonClick() {
+        requestMyLocation();
+
+        return true;
     }
 }

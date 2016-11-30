@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
+import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -54,6 +55,7 @@ public class RealTimeAPIPositionRequest {
     private class ProcessRawData extends AsyncTask<String, Void, List<VehiclePosition>> {
         @Override
         protected List<VehiclePosition> doInBackground(String... params) {
+            Log.i("AsyncTask Thread =>", " Thread for RealTimeAPIPositionRequest");
             String requestURL = params[0];
             URL textUrl;
             try {

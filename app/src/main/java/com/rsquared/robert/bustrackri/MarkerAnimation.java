@@ -31,7 +31,7 @@ public class MarkerAnimation {
         float durationInMs = markerController.getAnimationDuration();
         durationInMs = 24000;
         final long postDuration = (long) (durationInMs/187.5);
-
+        markerController.setBeenAnimated(true);
         final float finalDurationInMs = durationInMs;
         handler.post(new Runnable() {
             long elapsed;
@@ -51,6 +51,8 @@ public class MarkerAnimation {
                 if (t < 1) {
                     // Post again 16ms later.
                     handler.postDelayed(this, postDuration);
+                }else{
+                    markerController.setBeenAnimated(false);
                 }
             }
         });
