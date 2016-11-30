@@ -10,33 +10,29 @@ import com.google.android.gms.maps.model.LatLng;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 
 /**
  * Created by R^2 on 11/28/2016.
  */
-public class RealTimePositionRequest {
+public class RealTimeAPIPositionRequest {
 
-    private RealTimePositionRequestListener listener;
+    private RealTimeAPIPositionRequestListener listener;
     private String requestURL;
     private Context context;
     private boolean initialize;
     private String route_id;
 
-    public RealTimePositionRequest(RealTimePositionRequestListener listener, String requestURL, Context context, boolean initialiseRealTime, String route_id) {
+    public RealTimeAPIPositionRequest(RealTimeAPIPositionRequestListener listener, String requestURL, Context context, boolean initialiseRealTime, String route_id) {
         this.listener = listener;
         this.requestURL = requestURL;
         this.context = context;
@@ -55,16 +51,9 @@ public class RealTimePositionRequest {
         }
     }
 
-    private boolean isConnected(){
-        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-        boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
-        return isConnected;
-    }
-
-    private class ProcessRawData extends AsyncTask<String, Void, String> {
+    private class ProcessRawData extends AsyncTask<String, Void, List<VehiclePosition>> {
         @Override
-        protected String doInBackground(String... params) {
+        protected List<VehiclePosition> doInBackground(String... params) {
             String requestURL = params[0];
             URL textUrl;
             try {
@@ -78,7 +67,8 @@ public class RealTimePositionRequest {
                 }
                 bufferReader.close();
                 inputStream.close();
-                return stringText;
+                List<VehiclePosition> vehiclePosition = createVehiclePositionList(stringText);
+                return vehiclePosition;
             } catch(MalformedURLException e) {
                 e.printStackTrace();
             } catch(IOException e) {
@@ -88,10 +78,11 @@ public class RealTimePositionRequest {
         }
 
         @Override
-        protected void onPostExecute(String jsonResponse) {
-            if(jsonResponse != null) {
-                List<VehiclePosition> vehiclePosition = createVehiclePositionList(jsonResponse);
-                listener.onRealTimePositionRequestSuccess(vehiclePosition, initialize);
+        protected void onPostExecute(List<VehiclePosition> vehiclePositionList) {
+            if(vehiclePositionList.size() > 0) {
+                listener.onRealTimePositionRequestSuccess(vehiclePositionList, initialize);
+            }else{
+                listener.onRealTimeConnectionFailure("No Real Time Data for route: " + route_id);
             }
         }
     }
@@ -128,10 +119,11 @@ public class RealTimePositionRequest {
                         // Set data into vehicleposition
                         VehiclePosition vehiclePosition = new VehiclePosition();
                         vehiclePosition.setLatLng(latLng);
-                        vehiclePosition.setTripId(tripId);
+                        vehiclePosition.setTripId(label);
                         vehiclePosition.setStartTime(startTime);
                         vehiclePosition.setStopName(stopName);
                         vehiclePosition.setStopSequence(Integer.valueOf(stopSequence));
+                        vehiclePosition.setRealTime(true);
 
                         // Add the vehicleposition to list and send it over to the other side
                         vehiclePositionList.add(vehiclePosition);
@@ -142,6 +134,13 @@ public class RealTimePositionRequest {
                 e.printStackTrace();
         }
         return vehiclePositionList;
+    }
+
+    private boolean isConnected(){
+        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+        return isConnected;
     }
 
     private String getStopName(String stopId) {
