@@ -124,6 +124,7 @@ public class RealTimeAPIPositionRequest {
                         vehiclePosition.setTripId(label);
                         vehiclePosition.setStartTime(startTime);
                         vehiclePosition.setStopName(stopName);
+                        vehiclePosition.setBearing(bearing);
                         vehiclePosition.setStopSequence(Integer.valueOf(stopSequence));
                         vehiclePosition.setRealTime(true);
 

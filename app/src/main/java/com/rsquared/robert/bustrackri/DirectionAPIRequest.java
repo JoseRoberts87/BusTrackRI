@@ -46,8 +46,7 @@ public class DirectionAPIRequest {
         String requestURL = createURL(originLatLng, destinationLatLng, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
                 MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST);
         if (!isConnected()) {
-            LatLng latLng = new LatLng(41.3534, -71.3645);
-            listener.onDirectionAPIFailure(latLng, markerId, "No internet Connection");
+            listener.onDirectionAPIFailure(destinationLatLng, markerId, "No internet Connection");
         } else {
             listener.onDirectionAPIRequestStart();
             new ProcessRawData().execute(requestURL);

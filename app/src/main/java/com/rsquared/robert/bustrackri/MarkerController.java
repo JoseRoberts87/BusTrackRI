@@ -1,5 +1,6 @@
 package com.rsquared.robert.bustrackri;
 
+import android.graphics.Bitmap;
 import android.location.Location;
 
 import com.google.android.gms.maps.model.LatLng;
@@ -18,6 +19,7 @@ import java.util.Map;
 public class MarkerController {
 
     private Marker marker;
+    private Bitmap arrowImage;
     private LatLng latLng;
     private Location location;
     private long timeStamp;
@@ -257,5 +259,13 @@ public class MarkerController {
 
     public void setBeenAnimated(boolean beenAnimated) {
         isBeenAnimated = beenAnimated;
+    }
+
+    public Bitmap getArrowImage() {
+        return arrowImage;
+    }
+
+    public void setArrowImage(Bitmap arrowImage) {
+        this.arrowImage = arrowImage;
     }
 }

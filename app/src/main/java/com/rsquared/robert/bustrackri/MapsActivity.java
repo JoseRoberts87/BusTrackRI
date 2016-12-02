@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationManager;
@@ -78,6 +80,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        String StevensEsuUn = "Mojon";
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -301,6 +305,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             String stopName = vehiclePosition.getStopName().trim();
             String startTime = vehiclePosition.getStartTime().trim();
             int stopSequence = vehiclePosition.getStopSequence();
+            double bearing = vehiclePosition.getBearing();
             boolean isRealTime = vehiclePosition.isRealTime();
             String tripId = vehiclePosition.getTripId().trim();
             LatLng destinationLatLng = vehiclePosition.getLatLng();
@@ -316,55 +321,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }else{
                     markerOptions = createBusMarkerOptionDefault(destinationLatLng);
                 }
+
                 Marker marker = mMap.addMarker(markerOptions);
                 markerController = new MarkerController(marker, tripId, destinationLatLng, timeStamp, markerOptions, markerAnimation, 100, false);
                 markerController.setBeenAnimated(false);
+                markerController.setBearing(bearing);
                 markerControllerSet.add(markerController);
 //                Toast.makeText(this, "Initializing markerId: " + markerController.getMarkerId() , Toast.LENGTH_LONG).show();
             }else if(!initialize){
                 // Get old markerController by Id from MarkerControllerSet
                 markerController = getMarkerControllerById(tripId);
-
                 Marker marker = markerController.getMarker();
-
                 LatLng originLatLng = marker.getPosition();
 
                 // check if location changed, initiate animation
                 if (originLatLng != destinationLatLng) {
-
                     requestDirectionAPIData(tripId, originLatLng, destinationLatLng);
                     Toast.makeText(this, "Animating bus: " + markerController.getMarkerId() + " this is realtime = " + isRealTime, Toast.LENGTH_LONG).show();
-
-/*
-                    List<LatLng> latLngList = new ArrayList<>();
-
-//                    LatLng originLatLng = markerController.getLatLng();
-*//*                    try {
-                        new DirectionAPIRequest(this, this.getBaseContext(), originLatLng, destinationLatLng).execute();
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
-                    }*//*
-
-*//*                    latLngList.add(originLatLng);
-                    markerController.setLatLngArray(latLngList);*//*
-                    // call animation for this markerController
-                    MarkerAnimation markerAnimation = markerController.getMarkerAnimation();
-//                    Marker marker = markerController.getMarker();
-
-                    long markerControllerTimeStamp = markerController.getTimeStamp();
-                    long animationDuration = timeStamp - markerControllerTimeStamp ;
-
-                    int animationInSec = (int) (animationDuration/1000);
-
-//                    markerController.setLatLng(destinationLatLng);
-                    markerController.setAnimationDuration(animationDuration);
-
-                    if(!markerController.isBeenAnimated()) {
-                        Toast.makeText(this, "Animating bus: " + markerController.getMarkerId() + " this is realtime = " + isRealTime, Toast.LENGTH_LONG).show();
-                        markerAnimation.animateMarkerToGB(marker, destinationLatLng, new LatLngInterpolator.Linear(), markerController);
-                    }*/
-
-//                    markerController.setTimeStamp(System.currentTimeMillis());
                 }
             }
         }
@@ -423,11 +396,68 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onDirectionAPIRequestSuccess(List<LatLng> latLngList, String markerId) {
+
         if(latLngList != null && latLngList.size() >0) {
+            MarkerController markerController = getMarkerControllerById(markerId);
+            markerController.setLatLngArray(latLngList);
+            double bearing = markerController.getBearing();
             drawPolyLines(latLngList);
-            animateMarkerControllerArray(getMarkerControllerById(markerId));
+            setMarkerArrow(markerController, latLngList.get(latLngList.size() - 1), bearing);
+//            animateMarkerControllerArray(getMarkerControllerById(markerId));
+            animateSingleMarkerController(markerController, latLngList.get(latLngList.size() - 1), true);
         }else{
-            // do nothing
+            // do nothing for now
+        }
+    }
+
+    private void setMarkerArrow(MarkerController markerController, LatLng latLng, double bearing) {
+
+        double adjBearing = Math.round(bearing / 3) * 3;
+        while (adjBearing >= 120) {
+            adjBearing -= 120;
+        }
+
+        new DownloadWebpageTask().execute(markerController);
+
+    }
+
+    // Uses AsyncTask to create a task away from the main UI thread. This task takes awaas
+    // URL string and uses it to create an HttpUrlConnection. Once the connection
+    // has been established, the AsyncTask downloads the contents of the webpage as
+    // an InputStream. Finally, the InputStream is converted into a string, which is
+    // displayed in the UI by the AsyncTask's onPostExecute method.
+    private class DownloadWebpageTask extends AsyncTask<MarkerController, Void, MarkerController> {
+        @Override
+        protected MarkerController doInBackground(MarkerController... params) {
+
+            // params comes from the execute() call: params[0] is the url.
+            MarkerController markerController = params[0];
+            double adjBearing = markerController.getBearing();
+
+            try {
+                URL url = new URL("http://maps.google.com/mapfiles/dir_" + String.valueOf((int)adjBearing) + ".png");
+                try {
+                    Bitmap image = BitmapFactory.decodeStream(url.openConnection().getInputStream());
+                    markerController.setArrowImage(image);
+                    return markerController;
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            } catch (MalformedURLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            return null;
+        }
+        // onPostExecute displays the results of the AsyncTask.
+        @Override
+        protected void onPostExecute(MarkerController markerController) {
+            Bitmap image = markerController.getArrowImage();
+            LatLng lastLatLng = markerController.getLatLngArray().get(markerController.getLatLngArray().size());
+            if (image != null) {
+                mMap.addMarker(new MarkerOptions().position(lastLatLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.map_arrow)));
+            }
         }
     }
 
@@ -437,7 +467,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 polylineOptions.add(latLngList.get(i));
             }
         if(latLngList.size() > 0){
-            LatLng lastLatLng = latLngList.get(latLngList.size());
+            LatLng lastLatLng = latLngList.get(latLngList.size() - 1);
 //            polylineOptions.ic
         }
         mMap.addPolyline(polylineOptions);
@@ -765,30 +795,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private MarkerOptions createBusMarkerOptionDefault(LatLng latLng){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
                 .snippet("This is bus " + route_id + " Snippet").title("Bus " + route_id + " Lat: " + latLng.latitude + ", Lng: " + latLng.longitude);
         return markerOptions;
     }
 
     private MarkerOptions createBusMarkerOptionDefaultRealTime(LatLng latLng, String busLabel){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
                 .snippet("This is bus " + route_id + " Snippet").title("Bus:" + busLabel + " on Route: " + route_id + " Lat: " + latLng.latitude + ", Lng: " + latLng.longitude);
         return markerOptions;
     }
 
     private MarkerOptions createBusMarkerOptionWithSnippet(LatLng latLng, String snippet){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
                 .snippet(snippet);
         return markerOptions;
     }
 
     private MarkerOptions createBusMarkerOptionWithTitle(LatLng latLng, String title){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
                 .title(title);
         return markerOptions;
     }
     private MarkerOptions createBusMarkerOptionWithSnippetWithTitle(LatLng latLng, String snippet, String title){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
                 .snippet(snippet).title(title);
         return markerOptions;
     }
