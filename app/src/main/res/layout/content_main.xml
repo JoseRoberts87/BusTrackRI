@@ -86,9 +86,12 @@
 
     <Switch
         android:text="Switch"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:id="@+id/switch3" />
+        android:layout_alignParentRight="true"
+        android:id="@+id/switch3"
+        android:checked="true"
+        android:textAppearance="@style/TextAppearance.Design.Tab" />
 
 </RelativeLayout>

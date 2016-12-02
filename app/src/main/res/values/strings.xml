@@ -23,5 +23,8 @@
     <string name="tab_weekday">WeekDays</string>
     <string name="tab_saturday">Saturday</string>
     <string name="tab_sunday_holiday">Sunday/Holiday</string>
+    <string name="weekday">Weekday</string>
+    <string name="saturday">Saturday</string>
+    <string name="sunday">Sunday</string>
 
 </resources>

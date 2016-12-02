@@ -1,9 +1,9 @@
 package com.rsquared.robert.bustrackri;
 
 import android.app.AlertDialog;
-import android.app.Dialog;
-import android.content.DialogInterface;
+import android.content.Context;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.support.design.widget.NavigationView;
@@ -15,13 +15,12 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.webkit.WebView;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.CompoundButton;
 import android.widget.ListView;
+import android.widget.Switch;
 import android.widget.TabHost;
-import android.widget.TabWidget;
-import android.widget.TextView;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -39,6 +38,14 @@ public class MainActivity extends AppCompatActivity
     private String route_Id = "";
     private List<String> stopNameArrayInbound;
     private List<String> stopNameArrayOutbound;
+
+    private List<String[]> timeArrayWeekDaysInbound;
+    private List<String[]> timeArraySaturdaysInbound;
+    private List<String[]> timeArraySundaysHolidaysInbound;
+
+    private List<String[]> timeArrayWeekDaysOutbound;
+    private List<String[]> timeArraySaturdaysOutbound;
+    private List<String[]> timeArraySundaysHolidaysOutbound;
 
     private boolean isInbound = true;
     private boolean isWeekDay = true;
@@ -84,11 +91,27 @@ public class MainActivity extends AppCompatActivity
         initialize();
         TabHost tabHost = (TabHost)findViewById(R.id.tabhost);
         tabHost.setup();
-        tabHost.addTab(tabHost.newTabSpec("tab_test1").setIndicator(getString(R.string.tab_weekday)).setContent(R.id.tab1));
-        tabHost.addTab(tabHost.newTabSpec("tab_test2").setIndicator(getString(R.string.tab_saturday)).setContent(R.id.tab2));
-        tabHost.addTab(tabHost.newTabSpec("tab_test3").setIndicator(getString(R.string.tab_sunday_holiday)).setContent(R.id.tab3));
+        tabHost.addTab(tabHost.newTabSpec("1").setIndicator(getString(R.string.tab_weekday)).setContent(R.id.tab1));
+        tabHost.addTab(tabHost.newTabSpec("2").setIndicator(getString(R.string.tab_saturday)).setContent(R.id.tab2));
+        tabHost.addTab(tabHost.newTabSpec("3").setIndicator(getString(R.string.tab_sunday_holiday)).setContent(R.id.tab3));
         tabHost.setOnTabChangedListener(this);
 
+    }
+
+    private void initialize() {
+        setWeekDays();
+        setSwitch();
+
+
+        String routeName = "";
+        if(itemTitle.isEmpty()){
+            routeName = "route_1";
+            route_Id = "1";
+        }else{
+            routeName = "route_" + route_Id;
+        }
+
+        setUIData();
     }
 
     @Override
@@ -109,8 +132,6 @@ public class MainActivity extends AppCompatActivity
             bundle.putString("url", urlTitle);
 
             startActivity(new Intent("android.intent.action.MAPACTIVITY").putExtras(bundle));
-            DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-            drawer.closeDrawer(GravityCompat.START);
         }else{
 //            do nothing or something
         }
@@ -152,12 +173,27 @@ public class MainActivity extends AppCompatActivity
         return super.onOptionsItemSelected(item);
     }
 
+    private String getUrlNumber(String url){
+        return url.substring(url.lastIndexOf("/") + 1, url.length());
+    }
+
+    private String getFormedUrl() {
+        String url = getIntent().getExtras().getString("url");
+        String number = url.substring(0, url.indexOf(" "));
+        return getString(R.string.url_ripta) + number;
+    }
+
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
 
         String itemTitle = (String) item.getTitle();
         this.itemTitle = itemTitle;
+        String routeNumber = itemTitle.substring(0, itemTitle.indexOf(" "));
+        route_Id = routeNumber;
+        setUIData();
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        drawer.closeDrawer(GravityCompat.START);
 
         // Handle navigation view item clicks here.
         /*String urlTitle = String.valueOf(item.getTitle());
@@ -171,83 +207,66 @@ public class MainActivity extends AppCompatActivity
         return true;
     }
 
-    private void createDialog(String stopName){
+    private void createDialog(String stopName, List<String[]> dataLineList){
 
+        List<String> timeByStopNameList = new ArrayList<>();
+
+        for(int i = 0; i < dataLineList.size(); i++){
+            String[] dataLineArray = dataLineList.get(i);
+            String dataStopName = dataLineArray[DataFileContants.STOP_NAME_INDEX].replaceAll("\"", "").trim();
+            if(dataStopName.trim().equalsIgnoreCase(stopName.trim())){
+                timeByStopNameList.add(dataLineArray[DataFileContants.ARRIVAL_TIME_INDEX]);
+            }
+
+        }
+
+        String[] timeArray = new String[timeByStopNameList.size()];
+
+        timeArray = timeByStopNameList.toArray(timeArray);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
-
-
-//            // Add the buttons
-//        builder.setPositiveButton(R.string.inbound, new DialogInterface.OnClickListener() {
-//            public void onClick(DialogInterface dialog, int id) {
-//                // User clicked OK button
-//
-//            }
-//        });
-//        builder.setNegativeButton(R.string.outbound, new DialogInterface.OnClickListener() {
-//            public void onClick(DialogInterface dialog, int id) {
-//                // User cancelled the dialog
-//            }
-//        });
-
-        String[] firstarr = {"first","second","third","first","first","first"};
         builder.setTitle(stopName);
-        builder.setItems(firstarr, null);
+        builder.setItems(timeArray, null);
         builder.setIcon(R.drawable.red_dot);
-        //builder.setIconAttribute(R.);
-
-
-//        List<String> listofstuff2 = getBusList("route_1");
-//        String[] nerArr2 = new String[listofstuff2.size()];
-//        nerArr2 = listofstuff.toArray(nerArr2);
-//
-//        String[] firstarr1 = {"second\t\t\t\t\t\t\tLine","second","second","second","second","second", "second","second","second","second","second","second"};
-//        builder.setItems(firstarr1, null);
-
-// Create the AlertDialog
         AlertDialog dialog = builder.create();
         dialog.show();
     }
 
-/*    @Override
-    public Dialog onCreateDialog(Bundle savedInstanceState) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this));
-        builder.setTitle("stops");
-///                .setItems(R.array.colors_array, null);
-        return builder.create();
-    }*/
-
-
-    private void initialize(){
+    private void setListView(){
         try {
-
-            final ListView listView = (ListView) findViewById(R.id.listview);
-
-
-            String routeName = "";
-            if(itemTitle.isEmpty()){
-                routeName = "route_1";
-            }else{
-                routeName = "route_" + route_Id;
-            }
-
-            setUIData(routeName);
-
             List<String> stopList;
-
             if(isInbound) {
                 stopList = stopNameArrayInbound;
             }else{
                 stopList = stopNameArrayOutbound;
             }
+
+            final ListView listView = (ListView) findViewById(R.id.listview);
             ArrayAdapter<String> stringArrayAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, stopList);
             listView.setAdapter(stringArrayAdapter);
             AdapterView.OnItemClickListener onItemClickListener = new AdapterView.OnItemClickListener() {
                 @Override
                 public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                     String stopName = (String) listView.getItemAtPosition(position);
-                    createDialog(stopName);
+
+                    if(isInbound) {
+                        if (isWeekDay) {
+                            createDialog(stopName, timeArrayWeekDaysInbound);
+                        } else if (isSaturday) {
+                            createDialog(stopName, timeArraySaturdaysInbound);
+                        } else {
+                            createDialog(stopName, timeArraySundaysHolidaysInbound);
+                        }
+                    }else {
+                        if (isWeekDay) {
+                            createDialog(stopName, timeArrayWeekDaysOutbound);
+                        } else if (isSaturday) {
+                            createDialog(stopName, timeArraySaturdaysOutbound);
+                        } else {
+                            createDialog(stopName, timeArraySundaysHolidaysOutbound);
+                        }
+                    }
 
                 }
             };
@@ -263,67 +282,169 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    private List<String> getBusList(String fileName){
+    private void setSwitch() {
+        final Switch mySwitch = (Switch) findViewById(R.id.switch3);
 
-        int resourceId = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
-        List<String> busArray = new ArrayList<>();
+        //set the switch to ON
+        mySwitch.setChecked(true);
+        //attach a listener to check for changes in state
 
-        try {
-            InputStream iS = getResources().openRawResource(resourceId);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                busArray.add(line);
-            }
-            Log.i("getTextFromFIle", busArray.toString());
-
-//            stopNameArray = busArray;
-        }catch (Exception e){
-            e.printStackTrace();
+        //check the current state before we display the screen
+        if(mySwitch.isChecked()){
+            mySwitch.setText(getString(R.string.inbound));
         }
-        return busArray;
+        else {
+            mySwitch.setText(getString(R.string.outbound));
+        }
+
+        mySwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView,
+                                         boolean isChecked) {
+
+                if(isChecked){
+                    isInbound = true;
+                    mySwitch.setText(getString(R.string.inbound));
+                }else{
+                    isInbound = false;
+                    mySwitch.setText(getString(R.string.outbound));
+                }
+                setListView();
+            }
+        });
+
+
     }
 
-    private void setUIData(String fileName){
 
-        int resourceId = this.getResources().getIdentifier(fileName, "raw", this.getPackageName());
+    private void setUIData(){
+        int resourceId = getResources().getIdentifier("route_" + route_Id, "raw", getPackageName());
+        new DownloadWebpageTask().execute(resourceId);
+    }
 
-        try {
-            InputStream iS = getResources().openRawResource(resourceId);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
-            String line;
-            Set<String> stopNameInboundSet = new HashSet<>();
-            Set<String> stopNameOutboundSet = new HashSet<>();
 
-            while ((line = reader.readLine()) != null) {
+    private class DownloadWebpageTask extends AsyncTask<Integer, Void, Boolean> {
+        @Override
+        protected Boolean doInBackground(Integer... params) {
+
+            int resourceId = params[0];
+            try {
+                InputStream iS = getResources().openRawResource(resourceId);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(iS));
+                String line;
+                // push Inbound outbound data set
+                Set<String> stopNameInboundSet = new HashSet<>();
+                Set<String> stopNameOutboundSet = new HashSet<>();
+
+                // push weekdays vs saturdays vs sundays Inbound data set
+                Set<String[]> timeArrayWeekDaysSetInbound = new HashSet<>();
+                Set<String[]> timeArraySaurdaysSetInbound = new HashSet<>();
+                Set<String[]> timeArraySundaysHolidaysSetInbound = new HashSet<>();
+
+                // push weekdays vs saturdays vs sundays Outbound data set
+                Set<String[]> timeArrayWeekDaysSetOutbound = new HashSet<>();
+                Set<String[]> timeArraySaurdaysSetOutbound = new HashSet<>();
+                Set<String[]> timeArraySundaysHolidaysSetOutbound = new HashSet<>();
+
+                while ((line = reader.readLine()) != null) {
                     String[] lineArray = line.split(",");
 
                     if(line.length() >= DataFileContants.ARRAY_LENGTH) {
 
                         // set everything in here
+
+                        // setting the stop name arrays for inbound and outbound
                         if (lineArray[DataFileContants.DIRECTION_ID].trim().equalsIgnoreCase("0")) {
-                            stopNameInboundSet.add(lineArray[DataFileContants.STOP_NAME_INDEX]);
-                        } else {
-                            stopNameOutboundSet.add(lineArray[DataFileContants.STOP_NAME_INDEX]);
+                            String dataStopName = lineArray[DataFileContants.STOP_NAME_INDEX].replaceAll("\"", " ").trim();
+                            stopNameInboundSet.add(dataStopName);
+
+                            // setting the time arrays for weekdays, saturdays and sundays/holidays Inbound
+                            if (lineArray[DataFileContants.SERVICE_ID_INDEX].trim().equalsIgnoreCase(getString(R.string.weekday))) {
+                                timeArrayWeekDaysSetInbound.add(lineArray);
+                            } else if (lineArray[DataFileContants.SERVICE_ID_INDEX].trim().equalsIgnoreCase(getString(R.string.saturday))) {
+                                timeArraySaurdaysSetInbound.add(lineArray);
+                            } else if (lineArray[DataFileContants.SERVICE_ID_INDEX].trim().equalsIgnoreCase(getString(R.string.sunday))) {
+                                timeArraySundaysHolidaysSetInbound.add(lineArray);
+                            }
+
+                        }else if(lineArray[DataFileContants.DIRECTION_ID].trim().equalsIgnoreCase("1")) {
+                            String dataStopName = lineArray[DataFileContants.STOP_NAME_INDEX].replaceAll("\"", " ").trim();
+                            stopNameOutboundSet.add(dataStopName);
+
+                            // setting the time arrays for weekdays, saturdays and sundays/holidays outbound
+                            if (lineArray[DataFileContants.SERVICE_ID_INDEX].trim().equalsIgnoreCase(getString(R.string.weekday))) {
+                                timeArrayWeekDaysSetOutbound.add(lineArray);
+                            } else if (lineArray[DataFileContants.SERVICE_ID_INDEX].trim().equalsIgnoreCase(getString(R.string.saturday))) {
+                                timeArraySaurdaysSetOutbound.add(lineArray);
+                            } else if (lineArray[DataFileContants.SERVICE_ID_INDEX].trim().equalsIgnoreCase(getString(R.string.sunday))) {
+                                timeArraySundaysHolidaysSetOutbound.add(lineArray);
+                            }
                         }
 
 
-
-                    }else{
                         // Array is not of correct length
                         Log.i("setUIData", "the line array is not the correct length");
                     }
+                }
+                timeArrayWeekDaysInbound = new ArrayList<>(timeArrayWeekDaysSetInbound);
+                timeArraySaturdaysInbound = new ArrayList<>(timeArraySaurdaysSetInbound);
+                timeArraySundaysHolidaysInbound = new ArrayList<>(timeArraySundaysHolidaysSetInbound);
+
+                timeArrayWeekDaysOutbound = new ArrayList<>(timeArrayWeekDaysSetOutbound);
+                timeArraySaturdaysOutbound = new ArrayList<>(timeArraySaurdaysSetOutbound);
+                timeArraySundaysHolidaysOutbound = new ArrayList<>(timeArraySundaysHolidaysSetOutbound);
+
                 stopNameArrayInbound = new ArrayList<>(stopNameInboundSet);
                 stopNameArrayOutbound = new ArrayList<>(stopNameOutboundSet);
+            }catch (Exception e){
+                e.printStackTrace();
+                return false;
             }
-        }catch (Exception e){
-            e.printStackTrace();
+            return true;
+        }
+        // onPostExecute displays the results of the AsyncTask.
+        @Override
+        protected void onPostExecute(Boolean isDataSet) {
+
+            if(isDataSet == true){
+                setListView();
+            }
         }
     }
 
     @Override
     public void onTabChanged(String tabId) {
 
+        int tabNumber = Integer.valueOf(tabId);
 
+        switch (tabNumber){
+            case 1 : setWeekDays();
+                break;
+            case 2 : setSaturdays();
+                break;
+            case 3 : setSundaysHolidays();
+                break;
+            default: setWeekDays();
+                break;
+        }
+    }
+
+    private void setSundaysHolidays() {
+        isWeekDay = false;
+        isSaturday = false;
+        isSundayHoliday = true;
+    }
+
+    private void setSaturdays() {
+        isWeekDay = false;
+        isSaturday = true;
+        isSundayHoliday = false;
+    }
+
+    private void setWeekDays(){
+        isWeekDay = true;
+        isSaturday = false;
+        isSundayHoliday = false;
     }
 }

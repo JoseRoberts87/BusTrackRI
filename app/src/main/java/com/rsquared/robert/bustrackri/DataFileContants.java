@@ -17,7 +17,7 @@ public class DataFileContants {
     public static final int DIRECTION_ID = 8;
     public static final int ROUTE_ID_INDEX = 9;
     public static final int ROUTE_URL = 10;
-    public static final int SERVICE = 11;
+    public static final int SERVICE_ID_INDEX = 11;
 
     public static final int ARRAY_LENGTH = 11;
 
