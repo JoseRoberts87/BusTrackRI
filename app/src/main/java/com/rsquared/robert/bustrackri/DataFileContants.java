@@ -19,4 +19,6 @@ public class DataFileContants {
     public static final int ROUTE_URL = 10;
     public static final int SERVICE = 11;
 
+    public static final int ARRAY_LENGTH = 11;
+
 }

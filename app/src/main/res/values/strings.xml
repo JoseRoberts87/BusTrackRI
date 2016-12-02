@@ -18,5 +18,10 @@
 
     <string name="ri_bus_routes">RIPTA Routes</string>
     <string name="url">url</string>
+    <string name="inbound">Inbound</string>
+    <string name="outbound">Outbound</string>
+    <string name="tab_weekday">WeekDays</string>
+    <string name="tab_saturday">Saturday</string>
+    <string name="tab_sunday_holiday">Sunday/Holiday</string>
 
 </resources>
