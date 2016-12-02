@@ -10,5 +10,5 @@ import java.util.List;
 public interface DirectionAPIRequestListener {
     void onDirectionAPIRequestStart();
     void onDirectionAPIRequestSuccess(List<LatLng> latLngList, String markerId);
-    void onDirectionAPIFailure(LatLng originalLatLng, String markerId);
+    void onDirectionAPIFailure(LatLng originalLatLng, String markerId, String failureMsg);
 }

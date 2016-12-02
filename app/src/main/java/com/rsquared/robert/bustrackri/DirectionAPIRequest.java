@@ -7,6 +7,7 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
+import com.google.maps.android.PolyUtil;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -29,21 +30,24 @@ public class DirectionAPIRequest {
     private DirectionAPIRequestListener listener;
     private Context context;
     private String markerId;
-    private String origin;
-    private String destination;
+    private LatLng originLatLng;
+    private LatLng destinationLatLng;
 
-    public DirectionAPIRequest(DirectionAPIRequestListener listener, Context context, LatLng originLatLng, LatLng destinationLatLng) {
+    public DirectionAPIRequest(DirectionAPIRequestListener listener, Context context, String markerId, LatLng originLatLng, LatLng destinationLatLng) {
         this.listener = listener;
         this.context = context;
+        this.originLatLng = originLatLng;
+        this.destinationLatLng = destinationLatLng;
+        this.markerId = markerId;
     }
 
     public void execute() throws UnsupportedEncodingException {
         listener.onDirectionAPIRequestStart();
-        String requestURL = createURL(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
+        String requestURL = createURL(originLatLng, destinationLatLng, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
                 MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST);
         if (!isConnected()) {
             LatLng latLng = new LatLng(41.3534, -71.3645);
-            listener.onDirectionAPIFailure(latLng, markerId);
+            listener.onDirectionAPIFailure(latLng, markerId, "No internet Connection");
         } else {
             listener.onDirectionAPIRequestStart();
             new ProcessRawData().execute(requestURL);
@@ -51,9 +55,9 @@ public class DirectionAPIRequest {
         }
     }
 
-    private class ProcessRawData extends AsyncTask<String, Void, String> {
+    private class ProcessRawData extends AsyncTask<String, Void, List<LatLng>> {
         @Override
-        protected String doInBackground(String... params) {
+        protected List<LatLng> doInBackground(String... params) {
             String requestURL = params[0];
             URL textUrl;
             String result = "";
@@ -68,7 +72,8 @@ public class DirectionAPIRequest {
                 }
                 bufferReader.close();
                 result = stringText;
-                return result;
+                List<LatLng> latLngList = getLatLngList(result);
+                return latLngList;
             } catch(MalformedURLException e) {
                 e.printStackTrace();
             } catch(IOException e) {
@@ -78,19 +83,17 @@ public class DirectionAPIRequest {
         }
 
         @Override
-        protected void onPostExecute(String jsonResponse) {
-            if(jsonResponse != null) {
-                List<LatLng> latLngList = getLatLngList(jsonResponse);
-                // TODO get list of LatLng
+        protected void onPostExecute(List<LatLng> latLngList) {
+            if(latLngList != null && latLngList.size() > 0) {
                 listener.onDirectionAPIRequestSuccess(latLngList, markerId);
+            }else{
+                listener.onDirectionAPIFailure(destinationLatLng, markerId, "LatLng list is empty");
             }
         }
     }
 
     private List<LatLng> getLatLngList(String jsonResponse) {
         List<LatLng> latLngList = new ArrayList<>();
-            String polyLines = "";
-            List<String> polyLinesArray = new ArrayList<>();
             try {
                 JSONParser jsonParser = new JSONParser();
                 JSONObject directionJSONObject = (JSONObject) jsonParser.parse(jsonResponse);
@@ -129,8 +132,7 @@ public class DirectionAPIRequest {
                     JSONObject routeJsonObject = (JSONObject) routeJsonArray.get(0);
                     JSONObject overviewPolyline = (JSONObject) routeJsonObject.get("overview_polyline");
                     String points = (String) overviewPolyline.get("points");
-                    polyLines = points;
-                    polyLinesArray.add(polyLines);
+                    latLngList = PolyUtil.decode(points);
                 }
         }catch (Exception e){
             e.printStackTrace();
@@ -145,17 +147,20 @@ public class DirectionAPIRequest {
         return isConnected;
     }
 
-    private String createURL(String origin, String destination, String outputFormat, String travelMode, String transitMode, String departureTime, String trafficModel){
+    private String createURL(LatLng originLatLng, LatLng destinationLng, String outputFormat, String travelMode, String transitMode, String departureTime, String trafficModel){
         String apiKey = context.getString(R.string.google_maps_key);
         String url = "";
+        String origin = originLatLng.latitude + ","+ originLatLng.longitude;
+        String destination = destinationLng.latitude + "," + destinationLng.longitude;
+
         if(false) {
             url = "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + origin
-                    + "&destination=" + this.destination + "&key=" + apiKey + "&mode=" + travelMode + "&traffic_model=" + trafficModel
+                    + "&destination=" + destination + "&key=" + apiKey + "&mode=" + travelMode + "&traffic_model=" + trafficModel
                     + "&transit_mode=" + transitMode + "&departure_time=" + departureTime;
         }else {
 
             url = "https://maps.googleapis.com/maps/api/directions/" + outputFormat + "?" + "origin=" + origin
-                    + "&destination=" + this.destination + "&departure_time=" + departureTime;
+                    + "&destination=" + destination + "&departure_time=" + departureTime;
         }
         Log.i("getDirectionsAPI", " The url to call to Googles Dirrection API is: " + url);
         return url;

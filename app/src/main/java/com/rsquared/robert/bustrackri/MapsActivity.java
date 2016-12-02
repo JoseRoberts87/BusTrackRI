@@ -320,28 +320,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 markerController = new MarkerController(marker, tripId, destinationLatLng, timeStamp, markerOptions, markerAnimation, 100, false);
                 markerController.setBeenAnimated(false);
                 markerControllerSet.add(markerController);
-                Toast.makeText(this, "Initializing markerId: " + markerController.getMarkerId() , Toast.LENGTH_LONG).show();
+//                Toast.makeText(this, "Initializing markerId: " + markerController.getMarkerId() , Toast.LENGTH_LONG).show();
             }else if(!initialize){
                 // Get old markerController by Id from MarkerControllerSet
                 markerController = getMarkerControllerById(tripId);
 
                 Marker marker = markerController.getMarker();
 
-                LatLng markerPosition = marker.getPosition();
+                LatLng originLatLng = marker.getPosition();
 
                 // check if location changed, initiate animation
-                if ((markerPosition != destinationLatLng)) {
+                if (originLatLng != destinationLatLng) {
+
+                    requestDirectionAPIData(tripId, originLatLng, destinationLatLng);
+                    Toast.makeText(this, "Animating bus: " + markerController.getMarkerId() + " this is realtime = " + isRealTime, Toast.LENGTH_LONG).show();
+
+/*
                     List<LatLng> latLngList = new ArrayList<>();
 
-                    LatLng originLatLng = markerController.getLatLng();
-/*                    try {
+//                    LatLng originLatLng = markerController.getLatLng();
+*//*                    try {
                         new DirectionAPIRequest(this, this.getBaseContext(), originLatLng, destinationLatLng).execute();
                     } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
-                    }*/
+                    }*//*
 
-/*                    latLngList.add(originLatLng);
-                    markerController.setLatLngArray(latLngList);*/
+*//*                    latLngList.add(originLatLng);
+                    markerController.setLatLngArray(latLngList);*//*
                     // call animation for this markerController
                     MarkerAnimation markerAnimation = markerController.getMarkerAnimation();
 //                    Marker marker = markerController.getMarker();
@@ -357,7 +362,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     if(!markerController.isBeenAnimated()) {
                         Toast.makeText(this, "Animating bus: " + markerController.getMarkerId() + " this is realtime = " + isRealTime, Toast.LENGTH_LONG).show();
                         markerAnimation.animateMarkerToGB(marker, destinationLatLng, new LatLngInterpolator.Linear(), markerController);
-                    }
+                    }*/
 
 //                    markerController.setTimeStamp(System.currentTimeMillis());
                 }
@@ -365,15 +370,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    private void animateSingleMarkerController(final MarkerController markerController, final LatLng destinationLatLng, final boolean isRealTime){
+        Marker marker = markerController.getMarker();
+        MarkerAnimation markerAnimation = markerController.getMarkerAnimation();
+        if(!markerController.isBeenAnimated()) {
+            Toast.makeText(this, "Animating bus: " + markerController.getMarkerId() + " this is realtime = " + isRealTime, Toast.LENGTH_LONG).show();
+            markerAnimation.animateMarkerToGB(marker, destinationLatLng, new LatLngInterpolator.Linear(), markerController);
+        }
+    }
+
+
     /**
      * Animates a marker in the map based on new latLng and timestamp
      * @param markerController
      */
-    private void animateMarkerController(final MarkerController markerController){
+    private void animateMarkerControllerArray(final MarkerController markerController){
         final MarkerAnimation markerAnimation = markerController.getMarkerAnimation();
         final Marker marker = markerController.getMarker();
-        final float postDuration = markerController.getAnimationDuration();
-
+        final float postDuration = 24000/markerController.getLatLngArray().size();
+        markerController.setAnimationCounter(markerController.getLatLngArray().size());
 
         final Handler handler = new Handler();
         handler.post(new Runnable() {
@@ -391,6 +406,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
+    private void requestDirectionAPIData(String tripId, LatLng originLatLng, LatLng destinationLatLng) {
+        try {
+            new DirectionAPIRequest(this, this.getBaseContext(), tripId, originLatLng, destinationLatLng).execute();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+    }
+
 
 
     @Override
@@ -400,27 +423,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onDirectionAPIRequestSuccess(List<LatLng> latLngList, String markerId) {
+        if(latLngList != null && latLngList.size() >0) {
+            drawPolyLines(latLngList);
+            animateMarkerControllerArray(getMarkerControllerById(markerId));
+        }else{
+            // do nothing
+        }
+    }
 
+    private void drawPolyLines(List<LatLng> latLngList) {
+        PolylineOptions polylineOptions = new PolylineOptions().width(15).color(Color.RED);
+            for (int i = 0; i < latLngList.size(); i++) {
+                polylineOptions.add(latLngList.get(i));
+            }
+        if(latLngList.size() > 0){
+            LatLng lastLatLng = latLngList.get(latLngList.size());
+//            polylineOptions.ic
+        }
+        mMap.addPolyline(polylineOptions);
     }
 
     @Override
-    public void onDirectionAPIFailure(LatLng originalLatLng, String markerId) {
-
-        List<LatLng> latLngList = new ArrayList<>();
-
+    public void onDirectionAPIFailure(LatLng destinationLatLng, String markerId, String failureMsg) {
         MarkerController markerController = getMarkerControllerById(markerId);
-//        LatLng latLng
-        latLngList.add(originalLatLng);
-        // use regular LatLng info
-//        markerController
-
-    }
-
-
-    private void pullDirectionAPIData(String Origin, String destination, String outputFormat, String travelMode, String transitMode, String departureTime, String trafficModel, MarkerController markerController){
-
-
-//        new DirectionAPIRequest(url, ).execute(markerController);
+        animateSingleMarkerController(markerController, destinationLatLng, markerController.isRealTime());
     }
 
     private MarkerController getMarkerControllerById(String markerId){
