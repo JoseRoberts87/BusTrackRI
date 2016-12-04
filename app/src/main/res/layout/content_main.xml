@@ -13,6 +13,15 @@
     tools:showIn="@layout/app_bar_main"
     tools:context="com.rsquared.robert.bustrackri.MainActivity">
 
+<!--    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="bottom|left"
+        android:layout_above="@+id/switch3"
+        android:layout_alignParentRight="true"
+        tools:background="@drawable/red_dot"
+        android:layout_margin="15dp" />-->
+
     <TabHost
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -72,17 +81,6 @@
         android:layout_above="@+id/switch3"
         android:layout_below="@+id/tabhost"
         android:layout_margin="5dp" />
-
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="bottom|left"
-        android:layout_alignBottom="@+id/listview"
-        android:layout_alignParentRight="true"
-        tools:background="@drawable/red_dot"
-        android:layout_marginRight="10dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp" />
 
     <Switch
         android:text="Switch"

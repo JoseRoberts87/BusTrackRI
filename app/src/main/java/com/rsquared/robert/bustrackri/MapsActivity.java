@@ -415,7 +415,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             adjBearing -= 120;
         }
 
-        new DownloadWebpageTask().execute(markerController);
+//        new DownloadWebpageTask().execute(markerController);
 
     }
 
@@ -793,30 +793,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private MarkerOptions createBusMarkerOptionDefault(LatLng latLng){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
                 .snippet("This is bus " + route_id + " Snippet").title("Bus " + route_id + " Lat: " + latLng.latitude + ", Lng: " + latLng.longitude);
         return markerOptions;
     }
 
     private MarkerOptions createBusMarkerOptionDefaultRealTime(LatLng latLng, String busLabel){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
                 .snippet("This is bus " + route_id + " Snippet").title("Bus:" + busLabel + " on Route: " + route_id + " Lat: " + latLng.latitude + ", Lng: " + latLng.longitude);
         return markerOptions;
     }
 
     private MarkerOptions createBusMarkerOptionWithSnippet(LatLng latLng, String snippet){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
                 .snippet(snippet);
         return markerOptions;
     }
 
     private MarkerOptions createBusMarkerOptionWithTitle(LatLng latLng, String title){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
                 .title(title);
         return markerOptions;
     }
     private MarkerOptions createBusMarkerOptionWithSnippetWithTitle(LatLng latLng, String snippet, String title){
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_small_turk))
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_bus_stop_big_medium_turk))
                 .snippet(snippet).title(title);
         return markerOptions;
     }

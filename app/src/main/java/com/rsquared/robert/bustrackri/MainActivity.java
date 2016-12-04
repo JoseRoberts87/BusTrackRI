@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.util.Log;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -59,6 +61,15 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startMap();
+            }
+        });
+
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
@@ -88,7 +99,7 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
 
 
-        initialize();
+        initialize(busRoutesArray.get(0));
         TabHost tabHost = (TabHost)findViewById(R.id.tabhost);
         tabHost.setup();
         tabHost.addTab(tabHost.newTabSpec("1").setIndicator(getString(R.string.tab_weekday)).setContent(R.id.tab1));
@@ -98,19 +109,15 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    private void initialize() {
+    private void initialize(String itemTitle) {
         setWeekDays();
         setSwitch();
 
 
-        String routeName = "";
-        if(itemTitle.isEmpty()){
-            routeName = "route_1";
+        if(this.itemTitle.isEmpty()){
+            this.itemTitle = itemTitle;
             route_Id = "1";
-        }else{
-            routeName = "route_" + route_Id;
         }
-
         setUIData();
     }
 
