@@ -118,6 +118,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void initialize(String itemTitle) {
+        stopLatLng = "";
         setWeekDays();
         setSwitch();
         if(this.itemTitle.isEmpty()){
@@ -142,7 +143,11 @@ public class MainActivity extends AppCompatActivity
             String urlTitle = String.valueOf(this.itemTitle);
             Bundle bundle = new Bundle();
 
-            bundle.putString("url", urlTitle + "?latLng=" + stopLatLng);
+            if(stopLatLng.isEmpty()){
+                bundle.putString("url", urlTitle);
+            }else{
+                bundle.putString("url", urlTitle + "?latLng=" + stopLatLng);
+            }
 
             startActivity(new Intent("android.intent.action.MAPACTIVITY").putExtras(bundle));
         }else{
@@ -204,7 +209,7 @@ public class MainActivity extends AppCompatActivity
         this.itemTitle = itemTitle;
         String routeNumber = itemTitle.substring(0, itemTitle.indexOf(" "));
         route_Id = routeNumber;
-        setUIData();
+        initialize("");
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
@@ -392,9 +397,6 @@ public class MainActivity extends AppCompatActivity
                         if (lineArray[DataFileContants.DIRECTION_ID].trim().equalsIgnoreCase("0")) {
                             String dataStopName = lineArray[DataFileContants.STOP_NAME_INDEX].replaceAll("\"", " ").trim();
                             stopNameInboundSet.add(dataStopName);
-                            if(stopLatLng.isEmpty()) {
-                                stopLatLng = lineArray[DataFileContants.STOP_LAT_INDEX] + "," + lineArray[DataFileContants.STOP_LON_INDEX];
-                            }
 
                             // setting the time arrays for weekdays, saturdays and sundays/holidays Inbound
                             if (lineArray[DataFileContants.SERVICE_ID_INDEX].trim().equalsIgnoreCase(getString(R.string.weekday))) {

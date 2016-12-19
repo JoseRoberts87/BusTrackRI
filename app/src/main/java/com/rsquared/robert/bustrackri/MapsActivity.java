@@ -60,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMyLocationButtonClickListener, RealTimeAPIPositionRequestListener, ScheduledPositionRequestListener, DirectionAPIRequestListener,  LocationListener, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
+    private static LatLng MIDDLE_LOCATION = null;
     private boolean isRunnablePosted = false;
     private String route_id = "";
     private long POSITION_REQUEST_DELAY = 35;
@@ -778,16 +779,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private LatLng getStopLatLong(){
         String url = getIntent().getExtras().getString("url");
-        int firstIndexLat = url.lastIndexOf("=") + 1;
-        int lastIndexLat = url.lastIndexOf(",");
-        int firstIndexLon = url.lastIndexOf(",") + 1;
-        int lastIndexLon = url.length();
 
-        String lat = url.substring(firstIndexLat, lastIndexLat);
-        String lon = url.substring(firstIndexLon, lastIndexLon);
+        if(url.contains("latLng=")) {
+            int firstIndexLat = url.lastIndexOf("=") + 1;
+            int lastIndexLat = url.lastIndexOf(",");
+            int firstIndexLon = url.lastIndexOf(",") + 1;
+            int lastIndexLon = url.length();
 
-        LatLng stopLatLng = new LatLng(Double.valueOf(lat), Double.valueOf(lon));
+            String lat = url.substring(firstIndexLat, lastIndexLat);
+            String lon = url.substring(firstIndexLon, lastIndexLon);
 
+            stopLatLng = new LatLng(Double.valueOf(lat), Double.valueOf(lon));
+        }else {
+            stopLatLng = null;
+        }
         return stopLatLng;
     }
 
@@ -853,6 +858,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         }
+        if(MIDDLE_LOCATION == null){
+            MIDDLE_LOCATION = new LatLng(latitude/totalLatLng, -longitude/totalLatLng);
+        }
+
     }
 
      private void setMapInfo(String url){
@@ -881,12 +890,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         }
-         MarkerOptions stopMarkerOptions = createStopMarkerOptionDefault(stopLatLng);
-         stopMarker = mMap.addMarker(stopMarkerOptions);
-         stopMarker.showInfoWindow();
 
-         CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(stopLatLng, 16);
+
+         CameraUpdate cameraUpdate = null;
+         if(stopLatLng == null) {
+             cameraUpdate = CameraUpdateFactory.newLatLngZoom(MIDDLE_LOCATION, 11);
+         }else{
+             MarkerOptions stopMarkerOptions = createStopMarkerOptionDefault(stopLatLng);
+             stopMarker = mMap.addMarker(stopMarkerOptions);
+             stopMarker.showInfoWindow();
+             cameraUpdate = CameraUpdateFactory.newLatLngZoom(stopLatLng, 15);
+         }
          mMap.moveCamera(cameraUpdate);
+         MIDDLE_LOCATION = null;
     }
 
     private List<String> getMapInfoAndRoute(String url, String value) {
