@@ -28,11 +28,10 @@ public class MarkerAnimation {
         final Handler handler = new Handler();
         final long start = SystemClock.uptimeMillis();
         final Interpolator interpolator = new AccelerateDecelerateInterpolator();
-        float durationInMs = markerController.getAnimationDuration();
-        durationInMs = 24000;
+//        final float durationInMs = markerController.getAnimationDuration();
+        final float durationInMs = 35000;
         final long postDuration = (long) (durationInMs/187.5);
         markerController.setBeenAnimated(true);
-        final float finalDurationInMs = durationInMs;
         handler.post(new Runnable() {
             long elapsed;
             float t;
@@ -42,7 +41,7 @@ public class MarkerAnimation {
             public void run() {
                 // Calculate progress using interpolator
                 elapsed = SystemClock.uptimeMillis() - start;
-                t = elapsed / finalDurationInMs;
+                t = elapsed / durationInMs;
                 v = interpolator.getInterpolation(t);
 
                 marker.setPosition(latLngInterpolator.interpolate(v, startPosition, finalPosition));

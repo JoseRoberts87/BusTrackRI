@@ -33,11 +33,11 @@ public class RealTimeAPIPositionRequest {
     private boolean initialize;
     private String route_id;
 
-    public RealTimeAPIPositionRequest(RealTimeAPIPositionRequestListener listener, String requestURL, Context context, boolean initialiseRealTime, String route_id) {
+    public RealTimeAPIPositionRequest(RealTimeAPIPositionRequestListener listener, String requestURL, Context context, boolean initializeRealTime, String route_id) {
         this.listener = listener;
         this.requestURL = requestURL;
         this.context = context;
-        this.initialize = initialiseRealTime;
+        this.initialize = initializeRealTime;
         this.route_id = route_id;
     }
 
@@ -81,7 +81,7 @@ public class RealTimeAPIPositionRequest {
 
         @Override
         protected void onPostExecute(List<VehiclePosition> vehiclePositionList) {
-            if(vehiclePositionList.size() > 0) {
+            if(vehiclePositionList != null && vehiclePositionList.size() > 0 ) {
                 listener.onRealTimePositionRequestSuccess(vehiclePositionList, initialize);
             }else{
                 listener.onRealTimeConnectionFailure("No Real Time Data for route: " + route_id);

@@ -86,7 +86,7 @@ public class ScheduledPositionRequest {
 
         @Override
         protected void onPostExecute(List<VehiclePosition> vehiclePositionList) {
-            if(vehiclePositionList.size() > 0) {
+            if(vehiclePositionList != null && vehiclePositionList.size() > 0) {
                 listener.onScheduledPositionRequestSuccess(vehiclePositionList, initialize);
             }else {
                 listener.onScheduledPositionFailure("No Scheduled at the moment for this route.");

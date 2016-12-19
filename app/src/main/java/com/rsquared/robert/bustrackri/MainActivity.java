@@ -27,7 +27,13 @@ import android.widget.TabHost;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -48,6 +54,8 @@ public class MainActivity extends AppCompatActivity
     private List<String[]> timeArrayWeekDaysOutbound;
     private List<String[]> timeArraySaturdaysOutbound;
     private List<String[]> timeArraySundaysHolidaysOutbound;
+
+    private String stopLatLng = "";
 
     private boolean isInbound = true;
     private boolean isWeekDay = true;
@@ -112,8 +120,6 @@ public class MainActivity extends AppCompatActivity
     private void initialize(String itemTitle) {
         setWeekDays();
         setSwitch();
-
-
         if(this.itemTitle.isEmpty()){
             this.itemTitle = itemTitle;
             route_Id = "1";
@@ -136,7 +142,7 @@ public class MainActivity extends AppCompatActivity
             String urlTitle = String.valueOf(this.itemTitle);
             Bundle bundle = new Bundle();
 
-            bundle.putString("url", urlTitle);
+            bundle.putString("url", urlTitle + "?latLng=" + stopLatLng);
 
             startActivity(new Intent("android.intent.action.MAPACTIVITY").putExtras(bundle));
         }else{
@@ -201,43 +207,64 @@ public class MainActivity extends AppCompatActivity
         setUIData();
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
-
-        // Handle navigation view item clicks here.
-        /*String urlTitle = String.valueOf(item.getTitle());
-        Bundle bundle = new Bundle();
-
-        bundle.putString("url", urlTitle);
-
-        startActivity(new Intent("android.intent.action.MAPACTIVITY").putExtras(bundle));
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-        drawer.closeDrawer(GravityCompat.START);*/
         return true;
     }
 
     private void createDialog(String stopName, List<String[]> dataLineList){
-
         List<String> timeByStopNameList = new ArrayList<>();
-
+        boolean stopLatLngDone = false;
         for(int i = 0; i < dataLineList.size(); i++){
             String[] dataLineArray = dataLineList.get(i);
             String dataStopName = dataLineArray[DataFileContants.STOP_NAME_INDEX].replaceAll("\"", "").trim();
             if(dataStopName.trim().equalsIgnoreCase(stopName.trim())){
                 timeByStopNameList.add(dataLineArray[DataFileContants.ARRIVAL_TIME_INDEX]);
+                if(!stopLatLngDone) {
+                    stopLatLng = dataLineArray[DataFileContants.STOP_LAT_INDEX] + "," + dataLineArray[DataFileContants.STOP_LON_INDEX];
+                    stopLatLngDone = true;
+                }
+
             }
-
         }
-
+        timeByStopNameList = formatTime(timeByStopNameList);
         String[] timeArray = new String[timeByStopNameList.size()];
-
         timeArray = timeByStopNameList.toArray(timeArray);
-
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
         builder.setTitle(stopName);
         builder.setItems(timeArray, null);
         builder.setIcon(R.drawable.red_dot);
         AlertDialog dialog = builder.create();
         dialog.show();
+    }
+
+    private static List<String> formatTime(List<String> timeList) {
+        List<String> formattedTimeList = new ArrayList<String>();
+        Collections.sort(timeList);
+
+        for(int i = 0; i < timeList.size(); i++){
+            String time = timeList.get(i);
+            String suffix = getSuffix(time);
+            Date date = null;
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("KK:mm");
+            try {
+                date = simpleDateFormat.parse(time);
+            } catch (ParseException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            String formattedTIme = simpleDateFormat.format(date);
+            formattedTimeList.add(formattedTIme + " " + suffix);
+        }
+        return formattedTimeList;
+    }
+
+    private static String getSuffix(String time) {
+        String suffix = "a.m.";
+        String hourString = time.substring(0, 2);
+        int hourInt = Integer.valueOf(hourString);
+        if(hourInt > 12 && hourInt < 24){
+            suffix = "p.m.";
+        }
+        return suffix;
     }
 
     private void setListView(){
@@ -327,11 +354,11 @@ public class MainActivity extends AppCompatActivity
 
     private void setUIData(){
         int resourceId = getResources().getIdentifier("route_" + route_Id, "raw", getPackageName());
-        new DownloadWebpageTask().execute(resourceId);
+        new DataCompilerTask().execute(resourceId);
     }
 
 
-    private class DownloadWebpageTask extends AsyncTask<Integer, Void, Boolean> {
+    private class DataCompilerTask extends AsyncTask<Integer, Void, Boolean> {
         @Override
         protected Boolean doInBackground(Integer... params) {
 
@@ -365,6 +392,9 @@ public class MainActivity extends AppCompatActivity
                         if (lineArray[DataFileContants.DIRECTION_ID].trim().equalsIgnoreCase("0")) {
                             String dataStopName = lineArray[DataFileContants.STOP_NAME_INDEX].replaceAll("\"", " ").trim();
                             stopNameInboundSet.add(dataStopName);
+                            if(stopLatLng.isEmpty()) {
+                                stopLatLng = lineArray[DataFileContants.STOP_LAT_INDEX] + "," + lineArray[DataFileContants.STOP_LON_INDEX];
+                            }
 
                             // setting the time arrays for weekdays, saturdays and sundays/holidays Inbound
                             if (lineArray[DataFileContants.SERVICE_ID_INDEX].trim().equalsIgnoreCase(getString(R.string.weekday))) {
@@ -388,8 +418,6 @@ public class MainActivity extends AppCompatActivity
                                 timeArraySundaysHolidaysSetOutbound.add(lineArray);
                             }
                         }
-
-
                         // Array is not of correct length
                         Log.i("setUIData", "the line array is not the correct length");
                     }

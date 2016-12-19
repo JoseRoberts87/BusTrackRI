@@ -5,4 +5,6 @@
     <color name="colorAccent">#FF4081</color>
     <color name="white">#FFFFFF</color>
     <color name="transparent">#80000000 </color>
+    <color name="violet800">#6A1B9A</color>
+    <color name="violet900">#4A148C</color>
 </resources>
