@@ -142,7 +142,7 @@ var route_path		= "e}g~Fpg~rLg@}F?_Bf@qC~@wBb@uAFsASeBs@kB{@h@aAXQiBA_BBgCReHVcJ
  -----------------------******************* ---- End Route Info ---------****************--------------------
 
 
-url = http://www.ripta.com/11-1
+url = http://www.ripta.com/11
 
 var stops = [["Broad City Line",41.7858,-71.4013,"bdcl","1","/real-time-bus-info-beta?id=bdcl","Transfer Point 1,6,11"],
 ["Broad & Thurbers",41.7981,-71.4144,"bdth","1","/real-time-bus-info-beta?id=bdth",""],
@@ -737,7 +737,7 @@ var route_path		= "gqv}FlherLi@rB}@t@iB~@wArAcAfCaAdCy@rB}A`CkGjIgC|C}CdCyAjCmAv
  -----------------------******************* ---- End Route Info ---------****************--------------------
 
 
-url = http://www.ripta.com/61-1
+url = http://www.ripta.com/61
 
 var stops = [["White Church P-n-R Lot",0,0,"0llt","0","/real-time-bus-info-beta?id=0llt",""],
 ["Warren P-n-R Lot",0,0,"78at","0","/real-time-bus-info-beta?id=78at",""],

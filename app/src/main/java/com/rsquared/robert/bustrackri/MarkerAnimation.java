@@ -29,9 +29,9 @@ public class MarkerAnimation {
         final long start = SystemClock.uptimeMillis();
         final Interpolator interpolator = new AccelerateDecelerateInterpolator();
 //        final float durationInMs = markerController.getAnimationDuration();
-        final float durationInMs = 35000;
+        final float durationInMs = markerController.getAnimationDuration();
         final long postDuration = (long) (durationInMs/187.5);
-        markerController.setBeenAnimated(true);
+
         handler.post(new Runnable() {
             long elapsed;
             float t;

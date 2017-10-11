@@ -17,6 +17,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Handler;
 import android.provider.Settings;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
@@ -77,6 +78,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Runnable runnable;
     private LatLng stopLatLng = null;
     private  Marker stopMarker = null;
+    private final static int PERMISSION_FINE_LOCATION = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -357,166 +359,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-/*    private Map<String, List<String>> setBusInfoListMap() {
-        try {
-            List<String> busInfoList;
-            JSONParser jsonParser = new JSONParser();
-            String jsonFile = "";
-            if (!textResult.isEmpty()) {
-                jsonFile = textResult;
-            }
-            String jsonField = getJsonField("route_id", route_id);
-
-            String rawFile = "";
-//            if (!jsonFile.contains(jsonField)) {
-//                rawFile = readRawFile("route_files" + route_id);
-            jsonFile = createJson(rawFile);
-
-//            }
-
-            if(!jsonFile.isEmpty()) {
-                JSONObject obj = (JSONObject) jsonParser.parse(jsonFile);
-                JSONArray jsonArray = (JSONArray) obj.get("entity");
-                busInfoListMap = new HashMap<>();
-                busIdList = new ArrayList<>();
-                for (int i = 0; i < jsonArray.size(); i++) {
-                    busInfoList = new ArrayList<>();
-                    JSONObject entityJsonObject = (JSONObject) jsonArray.get(i);
-                    JSONObject vehicleJsonObject = (JSONObject) entityJsonObject.get("vehicle");
-                    JSONObject tripJsonObject = (JSONObject) vehicleJsonObject.get("trip");
-                    String routeIdJsonObject = (String) tripJsonObject.get("route_id");
-                    if (routeIdJsonObject.equalsIgnoreCase(route_id)) {
-                        JSONObject positionJSONObject = (JSONObject) vehicleJsonObject.get("position");
-                        JSONObject vehicleVehicleObject = (JSONObject) vehicleJsonObject.get("vehicle");
-                        if (!busInfoList.contains(vehicleVehicleObject.get("label"))) {
-                            double latitude = (double) positionJSONObject.get("latitude");
-                            double longitude = (double) positionJSONObject.get("longitude");
-                            long timestamp = (long) vehicleJsonObject.get("timestamp");
-                            String stopId = (String) vehicleJsonObject.get("stop_id");
-                            String startTime = (String) tripJsonObject.get("start_time");
-                            String tripId = (String) tripJsonObject.get("trip_id");
-                            double bearing = (double) positionJSONObject.get("bearing");
-                            String label = (String) vehicleVehicleObject.get("label");
-                            busInfoList.add(String.valueOf(latitude));
-                            busInfoList.add(String.valueOf(longitude));
-                            busInfoList.add(String.valueOf(timestamp));
-                            busInfoList.add(String.valueOf(stopId));
-                            busInfoList.add(String.valueOf(startTime));
-                            busInfoList.add(String.valueOf(tripId));
-                            busInfoList.add(String.valueOf(bearing));
-                            busInfoList.add(String.valueOf(label));
-                            busIdList.add(label);
-                            busInfoListMap.put(label, busInfoList);
-                            final LatLng latLng = new LatLng(latitude, longitude);
-                            Location newLocation = new Location(String.valueOf(latLng));
-                            MarkerOptions markerOptions;
-                            final Marker marker;
-                            final MarkerController markerController;
-                            final MarkerAnimation markerAnimation;
-                            if (doesMarkerExist(label)) {
-                                marker = getMarkerById(label);
-                                markerController = getMarkerControllerById(label);
-
-                                if (hasMarkerLatLngChanged(markerController, latLng)) {
-                                    long oldTimeStamp = markerController.getTimeStamp();
-                                    long newTimeStamp = System.currentTimeMillis();
-                                    markerController.setTimeStamp(newTimeStamp);
-                                    long animationDuration = newTimeStamp - oldTimeStamp;
-
-//                                float animationDuration1000 = animationDuration/1000;
-                                    String origin = markerController.getLatLng().latitude + "," + markerController.getLatLng().longitude;
-                                    String destination = latLng.latitude + "," + latLng.longitude;
-
-
-                                    // Polyline animation
-//                                }
-//                                Log.i("polylines" , "polylines = " + polylinesArray);
-//                                getNearestRoadLocation(latLng);
-                                    markerAnimation = getMarkerAnimationById(label);
-                                    markerController.setLatLng(latLng);
-                                    markerController.setLocation(newLocation);
-                                    markerController.setRealTime(true);
-//                                markerController.setTimeStamp(timestamp);
-                                    markerController.setStopId(stopId);
-                                    markerController.setBearing(bearing);
-                                    markerController.setTripId(tripId);
-                                    markerController.setStartTime(startTime);
-
-//                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
-
-                                    // getting polylines from the direction services and adding the lines to the screen
-                                    pullDirectionAPIData(origin, destination, MAPConstants.OUTPUT_FORMAT_JSON, MAPConstants.TRAVEL_MODES_TRANSIT,
-                                            MAPConstants.TRANSIT_MODE_BUS, MAPConstants.DEPARTURE_TIME_NOW, MAPConstants.TRANFFIC_MODEL_BEST_GUEST, markerController);
-                                    List<String> polylineArray = getDirectionJSONPolyLine(markerController);
-
-                                    pullRoadAPIData(origin, destination, markerController);
-//                                for(String polyline: polylinesArray){
-                                    PolylineOptions polylineOptions = new PolylineOptions().width(9).color(Color.RED);
-                                    List<LatLng> latLngoAnimate = new ArrayList<>();
-                                    for (String polyline : polylineArray) {
-                                        List<LatLng> latLngList = PolyUtil.decode(polyline);
-                                        latLngoAnimate = PolyUtil.decode(polyline);
-                                        Log.i("polylines", "polylines = " + polyline);
-
-                                        for (LatLng latLngPolyline : latLngList) {
-                                            polylineOptions.add(latLngPolyline);
-                                            Log.i("polylines", "latLngPolyline = " + latLngPolyline + " Added!!! ");
-                                        }
-                                    }
-                                    animationDuration = animationDuration / latLngoAnimate.size();
-                                    final float postDuration = animationDuration;
-
-                                    markerController.setAnimationDuration(animationDuration);
-
-//                                for(LatLng latLngAn: latLngoAnimate){
-                                    markerController.setLatLngArray(latLngoAnimate);
-                                    markerController.setAnimationCounter(0);
-                                    final Handler handler = new Handler();
-                                    Toast.makeText(MapsActivity.this, "Animation started for bus: " + label, Toast.LENGTH_SHORT);
-                                    handler.post(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            int animationCounter = markerController.getAnimationCounter();
-                                            markerAnimation.animateMarkerToGB(marker, markerController.getLatLngArray().get(animationCounter), new LatLngInterpolator.Linear(), markerController);
-                                            if (markerController.getAnimationCounter() < markerController.getLatLngArray().size()) {
-                                                handler.postDelayed(this, (long) postDuration - 150);
-                                                if (markerController.getAnimationCounter() < markerController.getLatLngArray().size() - 1) {
-                                                    markerController.setAnimationCounter(markerController.getAnimationCounter() + 1);
-                                                }
-                                            }
-                                        }
-                                    });
-
-//                                }
-//                                markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
-
-
-//                                    polylineOptions.addAll(latLngList);
-                                    mMap.addPolyline(polylineOptions);
-
-
-                                    Log.i("MarkerAnimation", "Bus Label: " + markerController.getMarkerId() + ", was animated from laLng = " + marker.getPosition() + ", to latLng = " + latLng);
-                                }
-                            } else {
-                                markerOptions = createBusMarkerOptionDefaultRealTime(latLng, label);
-                                marker = mMap.addMarker(markerOptions);
-                                markerAnimation = new MarkerAnimation();
-                                markerController = new MarkerController(marker, label, latLng, System.currentTimeMillis(), markerOptions, markerAnimation, System.currentTimeMillis(), true);
-                                markerControllerSet.add(markerController);
-//                            markerAnimation.animateMarkerToGB(marker, latLng, new LatLngInterpolator.Linear(), markerController);
-                            }
-                        }
-                    }
-                }
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        return busInfoListMap;
-    }*/
-
-
-
     /**
      * Animates a marker in the map based on new latLng and timestamp
      * @param markerController
@@ -541,12 +383,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void run() {
                 int animationCounter = markerController.getAnimationCounter();
-                markerAnimation.animateMarkerToGB(marker, markerController.getLatLngArray().get(animationCounter), new LatLngInterpolator.Linear(), markerController);
+                if(!markerController.isBeenAnimated()) {
+                    markerController.setBeenAnimated(true);
+                    markerAnimation.animateMarkerToGB(marker, markerController.getLatLngArray().get(animationCounter), new LatLngInterpolator.Linear(), markerController);
+                    markerController.setAnimationCounter(markerController.getAnimationCounter() + 1);
+                }
                 if (markerController.getAnimationCounter() < markerController.getLatLngArray().size()) {
-                    handler.postDelayed(this, (long) postDuration - 150);
-                    if (markerController.getAnimationCounter() < markerController.getLatLngArray().size() - 1) {
-                        markerController.setAnimationCounter(markerController.getAnimationCounter() + 1);
-                    }
+                    handler.postDelayed(this, (long) 50);
+//                    if (markerController.getAnimationCounter() < markerController.getLatLngArray().size() - 1) {
+//                    }
                 }
             }
         });
@@ -603,8 +448,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             double bearing = markerController.getBearing();
             drawPolyLines(latLngList);
             setMarkerArrow(markerController, latLngList.get(latLngList.size() - 1), bearing);
-//            animateMarkerControllerArray(getMarkerControllerById(markerId));
-            animateSingleMarkerController(markerController, latLngList.get(latLngList.size() - 1), true);
+            animateMarkerControllerArray(getMarkerControllerById(markerId));
+//            animateSingleMarkerController(markerController, latLngList.get(latLngList.size() - 1), true);
         }else{
             // do nothing for now
         }
@@ -676,8 +521,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onDirectionAPIFailure(LatLng destinationLatLng, String markerId, String failureMsg) {
         MarkerController markerController = getMarkerControllerById(markerId);
-        animateSingleMarkerController(markerController, destinationLatLng, markerController.isRealTime());
-//        animateMarkerControllerArray(getMarkerControllerById(markerId));
+//        animateSingleMarkerController(markerController, destinationLatLng, markerController.isRealTime());
+        animateMarkerControllerArray(getMarkerControllerById(markerId));
 
     }
 
@@ -695,29 +540,44 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults) {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-                    // permission was granted, yay! Do the
-                    // contacts-related task you need to do.
-                    if (ContextCompat.checkSelfPermission(this,
-                            Manifest.permission.ACCESS_FINE_LOCATION)
-                            == PackageManager.PERMISSION_GRANTED) {
-
-                        mMap.setMyLocationEnabled(true);
-                    }
-
-                } else {
-
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
-                    Toast.makeText(this.getBaseContext(), "permission denied", Toast.LENGTH_SHORT).show();
+        switch (requestCode) {
+            case PERMISSION_FINE_LOCATION:
+            // If request is cancelled, the result arrays are empty.
+            if (grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // permission was granted, yay! Do the
+                // contacts-related task you need to do.
+                if (ContextCompat.checkSelfPermission(this,
+                        Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    mMap.setMyLocationEnabled(true);
                 }
-                return;
+
+            } else {
+                // permission denied, boo! Disable the
+                // functionality that depends on this permission.
+                Toast.makeText(this.getBaseContext(), "permission denied", Toast.LENGTH_SHORT).show();
+            }
+                break;
+        }
 
             // other 'case' lines to check for other
             // permissions this app might request
+    }
+
+        private void permission
+                () {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            mMap.setMyLocationEnabled(true);
+        } else {
+            ActivityCompat.requestPermissions(MapsActivity.this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    PERMISSION_FINE_LOCATION);
+
+           /* if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_FINE_LOCATION);
+            }*/
+        }
     }
 
     private void requestMyLocation() {
@@ -894,7 +754,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
          CameraUpdate cameraUpdate = null;
          if(stopLatLng == null) {
-             cameraUpdate = CameraUpdateFactory.newLatLngZoom(MIDDLE_LOCATION, 11);
+             cameraUpdate = CameraUpdateFactory.newLatLngZoom(MIDDLE_LOCATION, 12);
          }else{
              MarkerOptions stopMarkerOptions = createStopMarkerOptionDefault(stopLatLng);
              stopMarker = mMap.addMarker(stopMarkerOptions);

@@ -209,7 +209,7 @@ public class MainActivity extends AppCompatActivity
         this.itemTitle = itemTitle;
         String routeNumber = itemTitle.substring(0, itemTitle.indexOf(" "));
         route_Id = routeNumber;
-        initialize("");
+        setUIData();
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
